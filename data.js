@@ -775,3 +775,90 @@ const REGION_COLORS = {
   osaka:   { bg: "#FDF0F3", accent: "#B83A52", label: "🏯 Osaka"   },
   transit: { bg: "#EEF5FD", accent: "#1F6BB5", label: "✈ Transit" }
 };
+
+// ─── Japanese Phrases ─────────────────────────────────────────────────────────
+// Shared by phrases.html (display) and search.html (search index)
+const PHRASES = [
+
+  // ── BASICS ──────────────────────────────────────────────────────────────
+  { cat:'basics', jp:'こんにちは', romaji:'Konnichiwa', en:'Hello (daytime)', tip:'Use until about 6pm. Say it with a slight bow.' },
+  { cat:'basics', jp:'おはようございます', romaji:'Ohayou gozaimasu', en:'Good morning', tip:'More polite version. Informal: just おはよう (ohayou).' },
+  { cat:'basics', jp:'こんばんは', romaji:'Konbanwa', en:'Good evening', tip:'Use after about 6pm.' },
+  { cat:'basics', jp:'ありがとうございます', romaji:'Arigatou gozaimasu', en:'Thank you (polite)', tip:'The go-to thank you. Casual: ありがとう (arigatou).' },
+  { cat:'basics', jp:'すみません', romaji:'Sumimasen', en:'Excuse me / Sorry', tip:'The most useful word in Japan. Use to get attention, apologise, and say thanks.' },
+  { cat:'basics', jp:'はい', romaji:'Hai', en:'Yes', tip:'Also used as "I understand" or "I\'m listening" during conversations.' },
+  { cat:'basics', jp:'いいえ', romaji:'Iie', en:'No', tip:'Japanese often avoid saying no directly — shaking your head also works.' },
+  { cat:'basics', jp:'わかりません', romaji:'Wakarimasen', en:'I don\'t understand', tip:'Say this clearly and staff will often find someone who speaks English.' },
+  { cat:'basics', jp:'英語を話せますか？', romaji:'Eigo wo hanasemasu ka?', en:'Do you speak English?', tip:'Most young people in tourist areas do.' },
+  { cat:'basics', jp:'もう一度お願いします', romaji:'Mou ichido onegaishimasu', en:'Please say that again', tip:'Point to this phrase to ask someone to repeat themselves.' },
+  { cat:'basics', jp:'〜はどこですか？', romaji:'~ wa doko desu ka?', en:'Where is ~ ?', tip:'Replace ~ with any place name. Works everywhere!' },
+  { cat:'basics', jp:'トイレはどこですか？', romaji:'Toire wa doko desu ka?', en:'Where is the toilet?', tip:'Toilets in Japan are incredibly clean — don\'t be shy asking!' },
+  { cat:'basics', jp:'写真を撮っても良いですか？', romaji:'Shashin wo totte mo ii desu ka?', en:'May I take a photo?', tip:'Always ask before photographing people. Never photograph geisha.' },
+
+  // ── TRANSPORT ────────────────────────────────────────────────────────────
+  { cat:'transport', jp:'〜はどこですか？', romaji:'~ Eki wa doko desu ka?', en:'Where is ~ station?', tip:'Replace ~ with station name. e.g. "Aoto Eki wa doko desu ka?"' },
+  { cat:'transport', jp:'〜まで一枚ください', romaji:'~ made ichimai kudasai', en:'One ticket to ~, please', tip:'Show the destination name on your phone screen.' },
+  { cat:'transport', jp:'この電車は〜に止まりますか？', romaji:'Kono densha wa ~ ni tomarimasu ka?', en:'Does this train stop at ~?', tip:'Very useful when you\'re not sure if you\'re on the right train.' },
+  { cat:'transport', jp:'次は〜ですか？', romaji:'Tsugi wa ~ desu ka?', en:'Is the next stop ~?', tip:'Ask fellow passengers — Japanese people will often help.' },
+  { cat:'transport', jp:'ICカードに2000円チャージしてください', romaji:'IC caado ni nisen en chaaji shite kudasai', en:'Please charge ¥2,000 on my IC card', tip:'Say this at any station staffed counter.' },
+  { cat:'transport', jp:'乗り換えはどこですか？', romaji:'Norikawe wa doko desu ka?', en:'Where do I transfer?', tip:'Show your destination — staff will point to the right platform.' },
+  { cat:'transport', jp:'タクシーを呼んでください', romaji:'Takushii wo yonde kudasai', en:'Please call a taxi', tip:'Hotels will always call a taxi for you.' },
+  { cat:'transport', jp:'空港まで行ってください', romaji:'Kuukou made itte kudasai', en:'Please take me to the airport', tip:'Show the kanji to the driver: 羽田空港 (Haneda) or 成田空港 (Narita).' },
+
+  // ── FOOD ─────────────────────────────────────────────────────────────────
+  { cat:'food', jp:'ベジタリアンです', romaji:'Bejitarian desu', en:'I am vegetarian', tip:'Japan is not as vegetarian-friendly as India — always clarify!' },
+  { cat:'food', jp:'肉は食べられません', romaji:'Niku wa taberaremasen', en:'I cannot eat meat', tip:'Very important. Meat = 肉 (niku). Fish = 魚 (sakana).' },
+  { cat:'food', jp:'魚も食べられません', romaji:'Sakana mo taberaremasen', en:'I cannot eat fish either', tip:'Japanese "vegetarian" often includes fish. Say this too!' },
+  { cat:'food', jp:'これは肉が入っていますか？', romaji:'Kore wa niku ga haitte imasu ka?', en:'Does this contain meat?', tip:'Show the dish and ask. Staff will usually check the kitchen for you.' },
+  { cat:'food', jp:'野菜だけのものはありますか？', romaji:'Yasai dake no mono wa arimasu ka?', en:'Do you have anything with only vegetables?', tip:'Very useful at restaurants without English menus.' },
+  { cat:'food', jp:'おいしい！', romaji:'Oishii!', en:'Delicious!', tip:'Say this after eating — the chef or staff will be absolutely delighted!' },
+  { cat:'food', jp:'お会計をお願いします', romaji:'Okaikei wo onegaishimasu', en:'The bill please', tip:'Or just mime signing a check in the air — universally understood.' },
+  { cat:'food', jp:'お水をください', romaji:'Omizu wo kudasai', en:'Water please', tip:'In Japan, water is always free at restaurants. Just ask!' },
+  { cat:'food', jp:'辛くないものをください', romaji:'Karakunai mono wo kudasai', en:'Please give me something not spicy', tip:'For the kids — Japanese food is mild but some dishes surprise!' },
+  { cat:'food', jp:'これと同じものをください', romaji:'Kore to onaji mono wo kudasai', en:'Same as this please', tip:'Point to another diner\'s food — completely acceptable in Japan!' },
+
+  // ── SHOPPING ─────────────────────────────────────────────────────────────
+  { cat:'shopping', jp:'いくらですか？', romaji:'Ikura desu ka?', en:'How much is this?', tip:'For any item. Point and ask.' },
+  { cat:'shopping', jp:'これをください', romaji:'Kore wo kudasai', en:'I\'ll take this one', tip:'Point at the item + say this. Done!' },
+  { cat:'shopping', jp:'免税になりますか？', romaji:'Menzei ni narimasu ka?', en:'Can this be tax-free?', tip:'Show your passport — many shops offer 10% back on ¥5,000+ purchases.' },
+  { cat:'shopping', jp:'袋に入れてください', romaji:'Fukuro ni irete kudasai', en:'Please put it in a bag', tip:'Japanese shops often ask if you want a bag.' },
+  { cat:'shopping', jp:'カードは使えますか？', romaji:'Kaado wa tsukaemasu ka?', en:'Do you accept cards?', tip:'Most large shops do. Smaller shops and food stalls are often cash only.' },
+  { cat:'shopping', jp:'少し安くなりますか？', romaji:'Sukoshi yasuku narimasu ka?', en:'Can it be a little cheaper?', tip:'Bargaining is NOT normal in Japan. Only try at flea markets or antique shops.' },
+  { cat:'shopping', jp:'〜色はありますか？', romaji:'~ iro wa arimasu ka?', en:'Do you have it in ~ colour?', tip:'e.g. "Aka iro" (red), "Ao iro" (blue), "Shiro" (white), "Kuro" (black).' },
+
+  // ── HOTEL ────────────────────────────────────────────────────────────────
+  { cat:'hotel', jp:'チェックインをお願いします', romaji:'Chekkuin wo onegaishimasu', en:'Check in please', tip:'Show booking confirmation on your phone.' },
+  { cat:'hotel', jp:'チェックアウトをお願いします', romaji:'Chekkuauto wo onegaishimasu', en:'Check out please', tip:'' },
+  { cat:'hotel', jp:'Wi-Fiのパスワードを教えてください', romaji:'Wai-fai no passuwaado wo oshiete kudasai', en:'Please tell me the WiFi password', tip:'' },
+  { cat:'hotel', jp:'荷物を預かってもらえますか？', romaji:'Nimotsu wo azukatte moraemasu ka?', en:'Can you store my luggage?', tip:'Most hotels store bags for free before check-in and after check-out.' },
+  { cat:'hotel', jp:'タオルをもう一枚ください', romaji:'Taoru wo mou ichimai kudasai', en:'One more towel please', tip:'' },
+  { cat:'hotel', jp:'エアコンの使い方を教えてください', romaji:'Eakon no tsukaikata wo oshiete kudasai', en:'Please show me how to use the AC', tip:'Japanese AC remotes can be confusing. Just ask!' },
+
+  // ── EMERGENCY ────────────────────────────────────────────────────────────
+  { cat:'emergency', jp:'助けてください！', romaji:'Tasukete kudasai!', en:'Help me please!', tip:'Say loudly. Japanese people will respond quickly.' },
+  { cat:'emergency', jp:'救急車を呼んでください', romaji:'Kyuukyuusha wo yonde kudasai', en:'Please call an ambulance', tip:'Emergency number in Japan: 119 (ambulance/fire), 110 (police).' },
+  { cat:'emergency', jp:'警察を呼んでください', romaji:'Keisatsu wo yonde kudasai', en:'Please call the police', tip:'Emergency number: 110' },
+  { cat:'emergency', jp:'迷子になりました', romaji:'Maigo ni narimashita', en:'I am lost', tip:'Say this at any police box (koban — small blue police stations everywhere).' },
+  { cat:'emergency', jp:'気分が悪いです', romaji:'Kibun ga warui desu', en:'I feel sick', tip:'Japan has excellent pharmacies (薬局 yakkyoku) on every street.' },
+  { cat:'emergency', jp:'アレルギーがあります', romaji:'Arerugii ga arimasu', en:'I have allergies', tip:'Combined with the food phrases above — very important for vegetarians.' },
+  { cat:'emergency', jp:'病院に連れて行ってください', romaji:'Byouin ni tsurete itte kudasai', en:'Please take me to a hospital', tip:'' },
+  { cat:'emergency', jp:'パスポートを紛失しました', romaji:'Pasupooto wo funshitsu shimashita', en:'I lost my passport', tip:'Go to the nearest police box (koban) first, then your embassy.' },
+
+  // ── KIDS ─────────────────────────────────────────────────────────────────
+  { cat:'kids', jp:'かわいい！', romaji:'Kawaii!', en:'Cute! (kids say this all the time)', tip:'Japanese people will love hearing this from kids about anything!' },
+  { cat:'kids', jp:'おいしい！', romaji:'Oishii!', en:'Yummy / Delicious!', tip:'The word kids use most in Japan. Say it about everything!' },
+  { cat:'kids', jp:'ありがとう！', romaji:'Arigatou!', en:'Thanks! (casual)', tip:'Teach kids this from day 1 — they\'ll use it constantly.' },
+  { cat:'kids', jp:'これ何ですか？', romaji:'Kore nan desu ka?', en:'What is this?', tip:'Kids can point and ask — most vendors love explaining.' },
+  { cat:'kids', jp:'お手洗いはどこですか？', romaji:'Otearai wa doko desu ka?', en:'Where is the bathroom?', tip:'More polite version for kids to use.' },
+  { cat:'kids', jp:'一緒に写真撮ってもいいですか？', romaji:'Issho ni shashin totte mo ii desu ka?', en:'Can we take a photo together?', tip:'Japanese people sometimes ask kids this! This is how to ask back.' },
+  { cat:'kids', jp:'ポケモン好きです！', romaji:'Pokémon suki desu!', en:'I like Pokémon!', tip:'Instant friendship with any Japanese child. Magic words.' },
+  { cat:'kids', jp:'つまらない…', romaji:'Tsumaranai...', en:'I\'m bored... (use with caution)', tip:'Teach kids this for the shinkansen. Though Japan will keep them entertained!' },
+
+  // ── NUMBERS ──────────────────────────────────────────────────────────────
+  { cat:'numbers', jp:'一 (ichi) / 二 (ni) / 三 (san)', romaji:'ichi / ni / san', en:'1 / 2 / 3', tip:'' },
+  { cat:'numbers', jp:'四 (shi/yon) / 五 (go) / 六 (roku)', romaji:'shi·yon / go / roku', en:'4 / 5 / 6', tip:'4 is unlucky (sounds like "death") — so shi is avoided, use yon.' },
+  { cat:'numbers', jp:'七 (nana) / 八 (hachi) / 九 (ku) / 十 (juu)', romaji:'nana / hachi / ku / juu', en:'7 / 8 / 9 / 10', tip:'' },
+  { cat:'numbers', jp:'百 (hyaku) / 千 (sen) / 万 (man)', romaji:'hyaku / sen / man', en:'100 / 1,000 / 10,000', tip:'¥10,000 = ichiman en. ¥1,000 = sen en.' },
+  { cat:'numbers', jp:'一つ (hitotsu) / 二つ (futatsu)', romaji:'hitotsu / futatsu', en:'One (thing) / Two (things)', tip:'When ordering food: "hitotsu kudasai" = one please.' },
+  { cat:'numbers', jp:'何番線ですか？', romaji:'Nani bansen desu ka?', en:'Which platform number?', tip:'Extremely useful at train stations. Show destination, ask this.' }
+];

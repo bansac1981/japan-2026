@@ -111,8 +111,9 @@
       <span class="pill" data-type="shopping" onclick="setFilter(this,'shopping')">🛍 Shopping</span>
       <span class="pill" data-type="hack" onclick="setFilter(this,'hack')">💡 Hacks</span>
       <span class="pill" data-type="fact" onclick="setFilter(this,'fact')">📖 Facts</span>
+      <span class="pill" data-type="phrase" onclick="setFilter(this,'phrase')">🗣 Phrases</span>
     </div>
-    <div class="search-stats" id="search-stats">Type to search across all 22 days of the itinerary…</div>
+    <div class="search-stats" id="search-stats">Type to search across all 22 days + 70 Japanese phrases…</div>
   </div>
 
   <div class="results-container" id="results"></div>
@@ -156,6 +157,23 @@ TRIP_DATA.days.forEach(day => {
   });
 });
 
+// Phrases — searchable from PHRASES array in data.js
+(PHRASES || []).forEach(p => {
+  const catLabels = {
+    basics:'Basics & Greetings', transport:'Transport & Stations',
+    food:'Food & Restaurants', shopping:'Shopping & Payments',
+    hotel:'Hotel & Accommodation', emergency:'Emergency & Health',
+    kids:'For the Kids', numbers:'Numbers'
+  };
+  INDEX.push({
+    date: null, day: null, theme: 'Japanese Phrases', city: 'All Cities', region: 'transit',
+    type: 'phrase',
+    name: `${p.romaji} — ${p.en}`,
+    snippet: `${p.jp}  ·  ${catLabels[p.cat] || p.cat}${p.tip ? '  ·  ' + p.tip : ''}`,
+    searchText: `${p.jp} ${p.romaji} ${p.en} ${p.tip || ''} ${catLabels[p.cat] || p.cat} phrase japanese`
+  });
+});
+
 // ── Fuse.js setup ────────────────────────────────────────────────────────────
 const fuse = new Fuse(INDEX, {
   keys: ['searchText', 'name', 'city', 'theme'],
@@ -178,7 +196,7 @@ function setFilter(el, type) {
 function clearSearch() {
   document.getElementById('search-input').value = '';
   document.getElementById('clear-btn').style.display = 'none';
-  document.getElementById('search-stats').textContent = 'Type to search across all 22 days of the itinerary…';
+  document.getElementById('search-stats').textContent = 'Type to search across all 22 days + 70 Japanese phrases…';
   document.getElementById('results').innerHTML = '';
 }
 
@@ -193,7 +211,7 @@ function highlight(text, query) {
   return result;
 }
 
-const TYPE_LABELS = { activity:'📍 Activity', food:'🍜 Food', shopping:'🛍 Shopping', hack:'💡 Hack', fact:'📖 Fact' };
+const TYPE_LABELS = { activity:'📍 Activity', food:'🍜 Food', shopping:'🛍 Shopping', hack:'💡 Hack', fact:'📖 Fact', phrase:'🗣 Japanese Phrase' };
 
 function doSearch() {
   const query = document.getElementById('search-input').value.trim();
@@ -222,23 +240,47 @@ function doSearch() {
     return;
   }
 
-  // Group by date
+  // Separate phrases (no day) from itinerary results
+  const phraseResults = results.filter(r => r.item.date === null);
+  const dayResults    = results.filter(r => r.item.date !== null);
+
+  // Group itinerary results by date
   const grouped = {};
-  results.forEach(r => {
+  dayResults.forEach(r => {
     const d = r.item.date;
     if (!grouped[d]) grouped[d] = [];
     grouped[d].push(r);
   });
 
   const totalItems = results.length;
-  const totalDays = Object.keys(grouped).length;
-  statsEl.textContent = `${totalItems} result${totalItems !== 1 ? 's' : ''} across ${totalDays} day${totalDays !== 1 ? 's' : ''}`;
+  const totalGroups = Object.keys(grouped).length + (phraseResults.length > 0 ? 1 : 0);
+  statsEl.textContent = `${totalItems} result${totalItems !== 1 ? 's' : ''} across ${totalGroups} section${totalGroups !== 1 ? 's' : ''}`;
 
   let html = '';
+
+  // ── Phrase results block ─────────────────────────────────────────────────
+  if (phraseResults.length > 0) {
+    html += `<div class="day-group">
+      <a href="phrases.html" class="day-group-header transit">
+        <span>🗣</span>
+        <span style="flex:1">Japanese Phrases</span>
+        <span style="font-size:0.75rem;opacity:0.8">${phraseResults.length} match${phraseResults.length !== 1 ? 'es' : ''} →</span>
+      </a>`;
+    phraseResults.forEach(r => {
+      const item = r.item;
+      html += `<a href="phrases.html" class="result-item">
+        <div class="result-type">${TYPE_LABELS[item.type]}</div>
+        <div class="result-name">${highlight(item.name, query)}</div>
+        <div class="result-snippet">${highlight(item.snippet, query)}</div>
+      </a>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Day results blocks ───────────────────────────────────────────────────
   Object.keys(grouped).sort().forEach(date => {
     const dayData = TRIP_DATA.days.find(d => d.date === date);
     if (!dayData) return;
-    const colors = REGION_COLORS[dayData.region];
     const dateObj = new Date(date + 'T00:00:00');
     const dateLabel = dateObj.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
 
