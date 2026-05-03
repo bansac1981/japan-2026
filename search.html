@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search | Japan 2026</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .search-hero {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      transition: border-color 0.2s;
+    }
+    .search-input-wrap:focus-within { border-color: var(--accent); }
+    .search-icon { font-size: 1.1rem; color: var(--muted); flex-shrink: 0; }
+    #search-input {
+      flex: 1; border: none; background: transparent; font-size: 1rem;
+      font-family: inherit; color: var(--text); outline: none;
+    }
+    #search-input::placeholder { color: var(--muted); }
+    #clear-btn {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 1rem; padding: 2px 6px; border-radius: 6px; display: none;
+    }
+    #clear-btn:hover { background: var(--border); }
+
+    .search-stats { font-size: 0.82rem; color: var(--muted); margin-top: 10px; min-height: 18px; }
+
+    .results-container { }
+    .day-group { margin-bottom: 16px; }
+    .day-group-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; border-radius: 8px; margin-bottom: 8px;
+      font-size: 0.85rem; font-weight: 700; text-decoration: none;
+    }
+    .day-group-header.tokyo  { background: var(--tokyo-light);   color: var(--tokyo); }
+    .day-group-header.kyoto  { background: var(--kyoto-light);   color: var(--kyoto); }
+    .day-group-header.osaka  { background: var(--osaka-light);   color: var(--osaka); }
+    .day-group-header.transit{ background: var(--transit-light); color: var(--transit); }
+    .day-group-header:hover { opacity: 0.85; }
+
+    .result-item {
+      background: var(--card-bg); border-radius: 10px; padding: 12px 16px;
+      margin-bottom: 6px; box-shadow: var(--shadow); cursor: pointer;
+      border: 1.5px solid transparent; transition: border-color 0.15s, transform 0.15s;
+      text-decoration: none; display: block;
+    }
+    .result-item:hover { border-color: var(--border); transform: translateX(2px); }
+    .result-type {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--muted); margin-bottom: 3px;
+    }
+    .result-name { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .result-snippet { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    mark { background: #FFF3C4; color: var(--text); border-radius: 3px; padding: 0 2px; }
+
+    .empty-state {
+      text-align: center; padding: 48px 20px; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+    .pill {
+      padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: var(--card-bg); color: var(--muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .pill:hover { background: var(--bg); }
+    .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>🗾 Japan Family Vacation 2026</h1>
+  <p>Bansal–Jain Family · 18 May – 8 Jun 2026</p>
+</header>
+
+<nav class="site-nav">
+  <a href="index.html">📅 Calendar</a>
+  <a href="search.html" class="active">🔍 Search</a>
+  <a href="phrases.html">🗣 Phrases</a>
+  <a href="add.html">➕ Add</a>
+</nav>
+
+<div class="container">
+
+  <div class="search-hero">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Search activities, food, facts, hacks, places…" autocomplete="off" autofocus>
+      <button id="clear-btn" onclick="clearSearch()" title="Clear">✕</button>
+    </div>
+    <div class="filter-pills">
+      <span class="pill active" data-type="all" onclick="setFilter(this,'all')">All</span>
+      <span class="pill" data-type="activity" onclick="setFilter(this,'activity')">📍 Activities</span>
+      <span class="pill" data-type="food" onclick="setFilter(this,'food')">🍜 Food</span>
+      <span class="pill" data-type="shopping" onclick="setFilter(this,'shopping')">🛍 Shopping</span>
+      <span class="pill" data-type="hack" onclick="setFilter(this,'hack')">💡 Hacks</span>
+      <span class="pill" data-type="fact" onclick="setFilter(this,'fact')">📖 Facts</span>
+    </div>
+    <div class="search-stats" id="search-stats">Type to search across all 22 days of the itinerary…</div>
+  </div>
+
+  <div class="results-container" id="results"></div>
+
+</div>
+
+<footer class="site-footer">Japan Family Vacation 2026 · 🗾</footer>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/7.0.0/fuse.min.js"></script>
+<script>
+// ── Build flat search index ──────────────────────────────────────────────────
+const INDEX = [];
+
+TRIP_DATA.days.forEach(day => {
+  const base = { date: day.date, day: day.day, theme: day.theme, city: day.city, region: day.region };
+
+  // Activities
+  (day.activities || []).forEach(act => {
+    INDEX.push({ ...base, type: 'activity', name: act.name, snippet: act.notes || act.time || '', searchText: `${act.name} ${act.notes||''} ${act.time||''}` });
+  });
+
+  // Food
+  (day.food || []).forEach(f => {
+    INDEX.push({ ...base, type: 'food', name: f.name, snippet: `${f.where} · ${f.price}${f.notes ? ' — ' + f.notes : ''}`, searchText: `${f.name} ${f.where||''} ${f.notes||''}` });
+  });
+
+  // Shopping
+  (day.shopping || []).forEach(s => {
+    INDEX.push({ ...base, type: 'shopping', name: s.name, snippet: `${s.where} · ${s.price}${s.notes ? ' — ' + s.notes : ''}`, searchText: `${s.name} ${s.where||''} ${s.notes||''}` });
+  });
+
+  // Hacks
+  (day.hacks || []).forEach(h => {
+    INDEX.push({ ...base, type: 'hack', name: h.replace(/^💡\s*/,'').substring(0,80), snippet: h, searchText: h });
+  });
+
+  // Facts
+  (day.facts || []).forEach(f => {
+    INDEX.push({ ...base, type: 'fact', name: f.substring(0,80), snippet: f, searchText: f });
+  });
+});
+
+// ── Fuse.js setup ────────────────────────────────────────────────────────────
+const fuse = new Fuse(INDEX, {
+  keys: ['searchText', 'name', 'city', 'theme'],
+  threshold: 0.35,
+  includeScore: true,
+  includeMatches: true,
+  minMatchCharLength: 2,
+  ignoreLocation: true
+});
+
+let activeFilter = 'all';
+
+function setFilter(el, type) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = type;
+  doSearch();
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('clear-btn').style.display = 'none';
+  document.getElementById('search-stats').textContent = 'Type to search across all 22 days of the itinerary…';
+  document.getElementById('results').innerHTML = '';
+}
+
+function highlight(text, query) {
+  if (!query || !text) return text || '';
+  const words = query.trim().split(/\s+/).filter(w => w.length > 1);
+  let result = text.substring(0, 160);
+  words.forEach(w => {
+    const re = new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    result = result.replace(re, '<mark>$1</mark>');
+  });
+  return result;
+}
+
+const TYPE_LABELS = { activity:'📍 Activity', food:'🍜 Food', shopping:'🛍 Shopping', hack:'💡 Hack', fact:'📖 Fact' };
+
+function doSearch() {
+  const query = document.getElementById('search-input').value.trim();
+  const clearBtn = document.getElementById('clear-btn');
+  const statsEl = document.getElementById('search-stats');
+  const resultsEl = document.getElementById('results');
+
+  clearBtn.style.display = query ? 'block' : 'none';
+
+  if (query.length < 2) {
+    statsEl.textContent = 'Type at least 2 characters to search…';
+    resultsEl.innerHTML = '';
+    return;
+  }
+
+  let results = fuse.search(query);
+
+  // Filter by type
+  if (activeFilter !== 'all') {
+    results = results.filter(r => r.item.type === activeFilter);
+  }
+
+  if (results.length === 0) {
+    statsEl.textContent = `No results for "${query}"`;
+    resultsEl.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No matches found.<br>Try different keywords — e.g. "bamboo", "pokemon", "vegetarian"</p></div>`;
+    return;
+  }
+
+  // Group by date
+  const grouped = {};
+  results.forEach(r => {
+    const d = r.item.date;
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(r);
+  });
+
+  const totalItems = results.length;
+  const totalDays = Object.keys(grouped).length;
+  statsEl.textContent = `${totalItems} result${totalItems !== 1 ? 's' : ''} across ${totalDays} day${totalDays !== 1 ? 's' : ''}`;
+
+  let html = '';
+  Object.keys(grouped).sort().forEach(date => {
+    const dayData = TRIP_DATA.days.find(d => d.date === date);
+    if (!dayData) return;
+    const colors = REGION_COLORS[dayData.region];
+    const dateObj = new Date(date + 'T00:00:00');
+    const dateLabel = dateObj.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+
+    html += `<div class="day-group">
+      <a href="day.html?date=${date}" class="day-group-header ${dayData.region}">
+        <span>Day ${dayData.day}</span>
+        <span>${dateLabel}</span>
+        <span style="flex:1">${dayData.theme}</span>
+        <span style="font-size:0.75rem;opacity:0.8">${grouped[date].length} match${grouped[date].length !== 1 ? 'es' : ''} →</span>
+      </a>`;
+
+    grouped[date].forEach(r => {
+      const item = r.item;
+      html += `<a href="day.html?date=${date}" class="result-item">
+        <div class="result-type">${TYPE_LABELS[item.type] || item.type}</div>
+        <div class="result-name">${highlight(item.name, query)}</div>
+        <div class="result-snippet">${highlight(item.snippet, query)}</div>
+      </a>`;
+    });
+
+    html += `</div>`;
+  });
+
+  resultsEl.innerHTML = html;
+}
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== document.getElementById('search-input')) {
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+  }
+});
+
+document.getElementById('search-input').addEventListener('input', doSearch);
+
+// Pre-fill from URL param (e.g. search.html?q=bamboo)
+const urlQ = new URLSearchParams(window.location.search).get('q');
+if (urlQ) { document.getElementById('search-input').value = urlQ; doSearch(); }
+</script>
+
+</body>
+</html>

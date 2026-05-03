@@ -16,6 +16,7 @@
 <nav class="site-nav">
   <a href="index.html">📅 Calendar</a>
   <a href="index.html#bookings">🏨 Bookings</a>
+  <a href="search.html">🔍 Search</a>
   <a href="phrases.html" class="active">🗣 Phrases</a>
   <a href="add.html">➕ Add</a>
 </nav>
@@ -59,6 +60,19 @@
 }
 .filter-btn:hover { background: var(--bg); border-color: #CCC; }
 .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Voice button */
+.phrase-card-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+}
+.speak-btn {
+  flex-shrink: 0; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 5px 9px; font-size: 1rem; cursor: pointer;
+  transition: all 0.15s; line-height: 1;
+}
+.speak-btn:hover { background: var(--transit-light); border-color: var(--transit); }
+.speak-btn.speaking { background: var(--transit-light); border-color: var(--transit); animation: pulse 0.6s infinite alternate; }
+@keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
 </style>
 
 <script src="data.js"></script>
@@ -188,10 +202,29 @@ function renderPhrases(cat) {
   }
 }
 
+function speak(text, btn) {
+  if (!window.speechSynthesis) { alert('Your browser does not support speech synthesis.'); return; }
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'ja-JP';
+  utt.rate = 0.78;
+  utt.pitch = 1;
+  btn.textContent = '🔊';
+  btn.classList.add('speaking');
+  utt.onend = () => { btn.textContent = '🔊'; btn.classList.remove('speaking'); };
+  utt.onerror = () => { btn.textContent = '🔊'; btn.classList.remove('speaking'); };
+  window.speechSynthesis.speak(utt);
+}
+
 function buildCard(p) {
+  // Escape text for inline onclick attribute
+  const escaped = p.jp.replace(/'/g, "\\'").replace(/"/g, '&quot;');
   return `
     <div class="phrase-card">
-      <div class="phrase-japanese">${p.jp}</div>
+      <div class="phrase-card-top">
+        <div class="phrase-japanese">${p.jp}</div>
+        <button class="speak-btn" onclick="speak('${escaped}', this)" title="Hear pronunciation">🔊</button>
+      </div>
       <div class="phrase-romaji">${p.romaji}</div>
       <div class="phrase-english">${p.en}</div>
       ${p.tip ? `<div class="phrase-tip">💡 ${p.tip}</div>` : ''}
