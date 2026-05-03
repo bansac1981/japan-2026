@@ -4,7 +4,7 @@
  * Deploy this file as a Cloudflare Worker (see SETUP.md for instructions).
  *
  * Required environment variables (set in Cloudflare dashboard → Worker → Settings → Variables):
- *   PERPLEXITY_KEY   — Your Perplexity API key (from perplexity.ai/settings/api)
+ *   GEMINI_KEY       — Your Google AI Studio API key (free at aistudio.google.com)
  *   GITHUB_TOKEN     — GitHub Personal Access Token (repo scope)
  *   GITHUB_OWNER     — Your GitHub username, e.g. "bansac1981"
  *   GITHUB_REPO      — Repo name, e.g. "japan-2026"
@@ -123,28 +123,48 @@ async function handleAsk(request, env) {
     return json({ error: 'messages array required' }, 400, env);
   }
 
-  const perplexityRes = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.PERPLEXITY_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      system: TRIP_CONTEXT,
-      messages,
-      max_tokens: 1800,
-      temperature: 0.2,
-    }),
-  });
+  // Convert OpenAI-style messages → Gemini format
+  // (Gemini uses "model" instead of "assistant" for the AI role)
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
 
-  if (!perplexityRes.ok) {
-    const err = await perplexityRes.text();
-    return json({ error: `Perplexity error: ${err}` }, 502, env);
+  const geminiRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: TRIP_CONTEXT }] },
+        contents,
+        tools: [{ google_search: {} }],   // Google Search grounding — live web results
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1800,
+        },
+      }),
+    }
+  );
+
+  if (!geminiRes.ok) {
+    const err = await geminiRes.text();
+    return json({ error: `Gemini error: ${err}` }, 502, env);
   }
 
-  const data = await perplexityRes.json();
-  return json(data, 200, env);
+  const data = await geminiRes.json();
+
+  // Normalise Gemini response → same shape assistant.html already expects
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map(p => p.text || '').join('') || 'No response received.';
+  const citations = (candidate?.groundingMetadata?.groundingChunks || [])
+    .map(c => ({ url: c.web?.uri, title: c.web?.title }))
+    .filter(s => s.url);
+
+  return json({
+    choices: [{ message: { content: text } }],
+    citations,
+  }, 200, env);
 }
 
 async function handleApply(request, env) {
