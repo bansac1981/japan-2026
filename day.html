@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading... | Japan 2026</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <h1>🗾 Japan Family Vacation 2026</h1>
+  <p>Bansal–Jain Family · 18 May – 8 Jun 2026</p>
+</header>
+
+<nav class="site-nav">
+  <a href="index.html">📅 Calendar</a>
+  <a href="index.html#bookings">🏨 Bookings</a>
+  <a href="phrases.html">🗣 Phrases</a>
+  <a href="add.html">➕ Add</a>
+</nav>
+
+<div class="container" id="day-content">
+  <p style="text-align:center;padding:60px;color:#999">Loading…</p>
+</div>
+
+<footer class="site-footer">
+  Japan Family Vacation 2026 · Bansal–Jain Family · 🗾
+</footer>
+
+<script src="data.js"></script>
+<script>
+(function() {
+  const params  = new URLSearchParams(window.location.search);
+  const dateStr = params.get('date');
+  const day     = dateStr ? getDayByDate(dateStr) : null;
+  const el      = document.getElementById('day-content');
+
+  if (!day) {
+    document.title = 'Day not found | Japan 2026';
+    el.innerHTML = `<div style="text-align:center;padding:60px">
+      <div style="font-size:3rem">🗾</div><h2 style="margin:12px 0">Day not found</h2>
+      <a href="index.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#C8472A;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">← Back to Calendar</a>
+    </div>`;
+    return;
+  }
+
+  const colors = REGION_COLORS[day.region];
+  document.title = `Day ${day.day}: ${day.theme} | Japan 2026`;
+
+  const allDates = TRIP_DATA.days.map(d => d.date).sort();
+  const idx      = allDates.indexOf(day.date);
+  const prevDate = idx > 0 ? allDates[idx - 1] : null;
+  const nextDate = idx < allDates.length - 1 ? allDates[idx + 1] : null;
+
+  function labelForDate(d) {
+    const found = getDayByDate(d);
+    if (!found) return '';
+    const o = new Date(d + 'T00:00:00');
+    return `${o.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · ${found.theme}`;
+  }
+
+  const niceDateStr = new Date(day.date + 'T00:00:00').toLocaleDateString('en-GB', {
+    weekday:'long', day:'numeric', month:'long', year:'numeric'
+  });
+
+  // ── Build activities with CHAINED MAPS ──────────────────────────────────
+  // First activity: origin = day.startLocation
+  // Each subsequent: origin = previous activity's .location
+  function buildActivities(activities, startLoc) {
+    return activities.map((act, i) => {
+      const origin = i === 0 ? startLoc : (activities[i-1].location || startLoc);
+      const dest   = act.location || null;
+      const mapHref  = dest ? mapsLink(origin, dest) : null;
+      const photoHref = photosLink(act.name);
+
+      return `
+        <div class="activity-card">
+          <div class="activity-top">
+            <div>
+              <div class="activity-name">${act.name}</div>
+              ${act.time ? `<div class="activity-time">⏱ ${act.time}</div>` : ''}
+              ${act.ticket ? `<div class="ticket-badge">🎫 ${act.ticket}</div>` : ''}
+            </div>
+            ${act.cost ? `<div class="activity-cost">💴 ${act.cost}</div>` : ''}
+          </div>
+          ${act.notes ? `<div class="activity-notes">${act.notes}</div>` : ''}
+          <div class="activity-actions">
+            ${mapHref ? `
+              <a href="${mapHref}" target="_blank" class="btn-maps">🗺 Directions from ${i === 0 ? 'Hotel/Start' : 'Previous Stop'}</a>
+            ` : ''}
+            ${act.officialUrl ? `<a href="${act.officialUrl}" target="_blank" class="btn-official">🔗 Official Site</a>` : ''}
+            <a href="${photoHref}" target="_blank" class="btn-photos">📸 View Photos</a>
+          </div>
+          ${mapHref ? `<div class="maps-hint">💡 In Google Maps tap ⋮ → Route options → Prefer: Less walking</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // ── Food section ─────────────────────────────────────────────────────────
+  function buildFood(food) {
+    if (!food || food.length === 0) return '';
+    const items = food.map(f => `
+      <div class="info-item">
+        <strong>${f.name}</strong>
+        <span>📍 ${f.where} · 💴 ${f.price}</span>
+        ${f.notes ? `<span style="display:block;margin-top:3px">${f.notes}</span>` : ''}
+      </div>`).join('');
+    return `
+      <div class="info-card">
+        <div class="info-card-title">🍜 What to Eat</div>
+        ${items}
+      </div>`;
+  }
+
+  // ── Shopping section ──────────────────────────────────────────────────────
+  function buildShopping(shopping) {
+    if (!shopping || shopping.length === 0) return '';
+    const items = shopping.map(s => `
+      <div class="info-item">
+        <strong>${s.name}</strong>
+        <span>📍 ${s.where} · 💴 ${s.price}</span>
+        ${s.notes ? `<span style="display:block;margin-top:3px">${s.notes}</span>` : ''}
+      </div>`).join('');
+    return `
+      <div class="info-card">
+        <div class="info-card-title">🛍 What to Buy / Shop</div>
+        ${items}
+      </div>`;
+  }
+
+  // ── Facts section ─────────────────────────────────────────────────────────
+  function buildFacts(facts) {
+    if (!facts || facts.length === 0) return '';
+    const items = facts.map(f => `<div class="info-item">📖 ${f}</div>`).join('');
+    return `
+      <div class="info-card">
+        <div class="info-card-title">🌟 Interesting Facts</div>
+        ${items}
+      </div>`;
+  }
+
+  // ── Hacks section ─────────────────────────────────────────────────────────
+  function buildHacks(hacks) {
+    if (!hacks || hacks.length === 0) return '';
+    const items = hacks.map(h => `<div class="hack-item">${h}</div>`).join('');
+    return `
+      <div class="hacks-box">
+        <div class="section-title" style="color:var(--kyoto)">💡 Money + Experience Hacks</div>
+        ${items}
+      </div>`;
+  }
+
+  // ── Links strip ──────────────────────────────────────────────────────────
+  function buildLinks(day) {
+    const official = (day.officialLinks||[]).map(l =>
+      `<a href="${l.url}" target="_blank" class="btn-official">🔗 ${l.label}</a>`).join('');
+    const booking = (day.bookingLinks||[]).map(l =>
+      `<a href="${l.url}" target="_blank" class="btn-maps">🎟 ${l.label}</a>`).join('');
+    if (!official && !booking) return '';
+    return `<div class="links-row">${official}${booking}</div>`;
+  }
+
+  // ── Accommodation bar ────────────────────────────────────────────────────
+  const isTBC = day.accommodation && (day.accommodation.includes('TBC') || day.accommodation.includes('TO BE BOOKED'));
+  const accomHtml = day.accommodation ? `
+    <div class="accom-bar ${isTBC ? 'tbc' : 'confirmed'}">
+      🏨 ${day.accommodation}
+    </div>` : '';
+
+  // ── Full page ────────────────────────────────────────────────────────────
+  const statusLabel = day.confirmed ? '✅ Confirmed' : '📋 Planned';
+
+  el.innerHTML = `
+    <div class="day-header ${day.region}">
+      <div class="day-header-top">
+        <div class="day-num">${colors.label} · Day ${day.day} of 21</div>
+        <div class="day-status-badge">${statusLabel}</div>
+      </div>
+      <h1>${day.theme}</h1>
+      <div class="day-meta">${niceDateStr} · ${day.city}</div>
+    </div>
+
+    ${accomHtml}
+
+    <div class="section-title">📍 Activities &amp; Plans</div>
+    ${buildActivities(day.activities, day.startLocation || 'Aoto Station Katsushika Tokyo')}
+
+    <div class="info-grid">
+      ${buildFood(day.food)}
+      ${buildShopping(day.shopping)}
+      ${buildFacts(day.facts)}
+    </div>
+
+    ${buildHacks(day.hacks)}
+
+    ${buildLinks(day)}
+
+    <div class="day-nav">
+      ${prevDate ? `<a href="day.html?date=${prevDate}" style="text-align:left">← ${labelForDate(prevDate)}</a>` : '<div></div>'}
+      <a href="index.html" class="home-link">📅</a>
+      ${nextDate ? `<a href="day.html?date=${nextDate}" style="text-align:right">${labelForDate(nextDate)} →</a>` : '<div></div>'}
+    </div>
+  `;
+})();
+</script>
+
+</body>
+</html>

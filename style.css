@@ -1,0 +1,336 @@
+/* Japan Family Vacation 2026 — Light Theme */
+
+:root {
+  /* Page */
+  --bg: #F8F6F2;
+  --card-bg: #FFFFFF;
+  --text: #2D2926;
+  --muted: #7A7269;
+  --border: #EAE6DF;
+  --shadow: 0 2px 12px rgba(45,41,38,0.07);
+  --radius: 14px;
+
+  /* Tokyo — forest green */
+  --tokyo: #2D7A4F;
+  --tokyo-light: #EEF8F2;
+  --tokyo-mid: #C6E8D4;
+
+  /* Kyoto — warm amber */
+  --kyoto: #C06B1A;
+  --kyoto-light: #FDF5E8;
+  --kyoto-mid: #F5D9B0;
+
+  /* Osaka — rose/vermilion */
+  --osaka: #B83A52;
+  --osaka-light: #FDF0F3;
+  --osaka-mid: #F5C2CD;
+
+  /* Transit — sky blue */
+  --transit: #1F6BB5;
+  --transit-light: #EEF5FD;
+  --transit-mid: #BDD8F5;
+
+  /* Accent — vermilion (torii red) used sparingly */
+  --accent: #C8472A;
+  --accent-light: #FFF0EC;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── Header ── */
+.site-header {
+  background: linear-gradient(145deg, #1A3A5C 0%, #2C6EA6 55%, #4A90C8 100%);
+  color: #fff;
+  padding: 28px 20px 22px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.site-header::after {
+  content: '⛩';
+  position: absolute; font-size: 110px; opacity: 0.06;
+  right: 10px; bottom: -10px; pointer-events: none;
+}
+.site-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.3px; }
+.site-header p { opacity: 0.8; margin-top: 5px; font-size: 0.9rem; }
+.header-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.header-badge {
+  background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600;
+}
+
+/* ── Nav ── */
+.site-nav {
+  background: var(--card-bg); border-bottom: 1.5px solid var(--border);
+  display: flex; justify-content: center; gap: 4px; padding: 10px 16px;
+  flex-wrap: wrap; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.site-nav a {
+  text-decoration: none; color: var(--muted);
+  padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+  transition: all 0.18s;
+}
+.site-nav a:hover { background: var(--bg); color: var(--text); }
+.site-nav a.active { background: var(--accent); color: #fff; }
+
+/* ── Layout ── */
+.container { max-width: 960px; margin: 0 auto; padding: 24px 16px 40px; }
+
+/* ── Legend ── */
+.legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; justify-content: center; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.legend-dot { width: 13px; height: 13px; border-radius: 50%; }
+
+/* ── Summary cards ── */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 12px; margin-bottom: 28px; }
+.summary-card {
+  background: var(--card-bg); border-radius: var(--radius); padding: 16px 18px;
+  box-shadow: var(--shadow); border-top: 3px solid transparent;
+}
+.summary-card.tokyo { border-top-color: var(--tokyo); }
+.summary-card.kyoto { border-top-color: var(--kyoto); }
+.summary-card.osaka { border-top-color: var(--osaka); }
+.summary-card.transit { border-top-color: var(--transit); }
+.summary-card h3 { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+.summary-card p { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+
+/* ── Calendar ── */
+.calendar-section { margin-bottom: 32px; }
+.calendar-section > h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+.cal-month { margin-bottom: 24px; }
+.cal-month-title { font-size: 0.78rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1.5px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-header-cell { text-align: center; font-size: 0.68rem; font-weight: 700; color: var(--muted); padding: 4px 0; text-transform: uppercase; }
+.cal-cell {
+  aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-decoration: none;
+  font-size: 0.8rem; border: 1.5px solid transparent; background: var(--card-bg);
+  color: var(--muted); min-height: 58px; transition: transform 0.15s, box-shadow 0.15s;
+}
+.cal-cell.empty { background: transparent; border-color: transparent; cursor: default; }
+.cal-cell.trip-day { cursor: pointer; box-shadow: var(--shadow); font-weight: 600; }
+.cal-cell.trip-day:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+.cal-cell.tokyo { background: var(--tokyo-light); border-color: var(--tokyo-mid); color: var(--tokyo); }
+.cal-cell.kyoto { background: var(--kyoto-light); border-color: var(--kyoto-mid); color: var(--kyoto); }
+.cal-cell.osaka { background: var(--osaka-light); border-color: var(--osaka-mid); color: var(--osaka); }
+.cal-cell.transit { background: var(--transit-light); border-color: var(--transit-mid); color: var(--transit); }
+.cal-day-num { font-size: 1.1rem; font-weight: 700; line-height: 1; }
+.cal-day-label { font-size: 0.56rem; font-weight: 600; margin-top: 3px; opacity: 0.85; text-align: center; line-height: 1.2; }
+
+/* ── Status tags ── */
+.confirmed-tag {
+  display: inline-block; background: #EEF8F2; color: #2D7A4F;
+  font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-top: 5px;
+}
+.tbc-tag {
+  display: inline-block; background: #FFF3E0; color: #C06B1A;
+  font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-top: 5px;
+}
+
+/* ── Status cards ── */
+.status-section { margin-bottom: 28px; }
+.status-section > h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; }
+.status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); gap: 10px; }
+.status-card {
+  background: var(--card-bg); border-radius: var(--radius); padding: 14px 16px;
+  box-shadow: var(--shadow); display: flex; align-items: flex-start; gap: 12px;
+}
+.status-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 1px; }
+.status-card h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 2px; }
+.status-card p { font-size: 0.78rem; color: var(--muted); }
+
+/* ── DAY PAGE ── */
+.day-header {
+  border-radius: var(--radius); padding: 28px 24px; margin-bottom: 20px; color: #fff; position: relative; overflow: hidden;
+}
+.day-header.tokyo  { background: linear-gradient(135deg, #1E5C38, #2D7A4F); }
+.day-header.kyoto  { background: linear-gradient(135deg, #8B4A10, #C06B1A); }
+.day-header.osaka  { background: linear-gradient(135deg, #8A2038, #B83A52); }
+.day-header.transit{ background: linear-gradient(135deg, #0D4E8C, #1F6BB5); }
+.day-header::after { content: ''; position: absolute; top: -30px; right: -30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.06); }
+
+.day-header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+.day-num { font-size: 0.8rem; font-weight: 600; opacity: 0.7; }
+.day-status-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); }
+.day-header h1 { font-size: 1.55rem; font-weight: 700; margin: 8px 0 5px; line-height: 1.25; }
+.day-header .day-meta { font-size: 0.88rem; opacity: 0.82; }
+
+/* Day photo link */
+.photo-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.photo-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 8px; text-decoration: none; font-size: 0.82rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text); box-shadow: var(--shadow); border: 1px solid var(--border);
+  transition: all 0.18s;
+}
+.photo-btn:hover { background: var(--bg); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+/* ── Section headers ── */
+.section-title {
+  font-size: 1rem; font-weight: 700; margin: 22px 0 12px;
+  display: flex; align-items: center; gap: 8px; color: var(--text);
+}
+.section-title::after { content: ''; flex: 1; height: 1.5px; background: var(--border); }
+
+/* ── Activity cards ── */
+.activity-card {
+  background: var(--card-bg); border-radius: var(--radius); padding: 16px 18px;
+  margin-bottom: 10px; box-shadow: var(--shadow); position: relative;
+}
+.activity-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.activity-name { font-weight: 700; font-size: 0.98rem; }
+.activity-time { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.activity-cost {
+  background: #F0F9F0; color: #2D7A4F; border-radius: 8px; padding: 4px 10px;
+  font-size: 0.8rem; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+}
+.ticket-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--transit-light); color: var(--transit); border-radius: 6px;
+  padding: 3px 9px; font-size: 0.75rem; font-weight: 700; margin-top: 6px;
+}
+.activity-notes { font-size: 0.87rem; color: #4A4540; margin-top: 8px; line-height: 1.6; }
+.activity-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+.btn-maps {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 0.78rem; font-weight: 600;
+  background: var(--transit-light); color: var(--transit); border: 1px solid var(--transit-mid);
+  transition: background 0.18s;
+}
+.btn-maps:hover { background: var(--transit-mid); }
+.btn-official {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 0.78rem; font-weight: 600;
+  background: var(--tokyo-light); color: var(--tokyo); border: 1px solid var(--tokyo-mid);
+  transition: background 0.18s;
+}
+.btn-official:hover { background: var(--tokyo-mid); }
+.btn-photos {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 0.78rem; font-weight: 600;
+  background: var(--kyoto-light); color: var(--kyoto); border: 1px solid var(--kyoto-mid);
+  transition: background 0.18s;
+}
+.btn-photos:hover { background: var(--kyoto-mid); }
+
+/* Maps hint */
+.maps-hint {
+  font-size: 0.72rem; color: var(--muted); margin-top: 4px; font-style: italic;
+}
+
+/* ── Info grid (food / shopping / facts / hacks) ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+@media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+
+.info-card {
+  background: var(--card-bg); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
+}
+.info-card-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
+.info-item { font-size: 0.85rem; padding: 5px 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
+.info-item:last-child { border-bottom: none; }
+.info-item strong { display: block; font-weight: 600; font-size: 0.88rem; }
+.info-item span { color: var(--muted); font-size: 0.8rem; }
+
+/* Hacks box */
+.hacks-box {
+  background: #FFFBF0; border: 1.5px solid var(--kyoto-mid); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 18px;
+}
+.hacks-box .section-title { color: var(--kyoto); }
+.hacks-box .section-title::after { background: var(--kyoto-mid); }
+.hack-item { display: flex; gap: 8px; font-size: 0.88rem; padding: 5px 0; align-items: flex-start; line-height: 1.5; }
+.hack-item::before { content: '💡'; flex-shrink: 0; }
+
+/* Tips box */
+.tips-box {
+  background: var(--transit-light); border: 1.5px solid var(--transit-mid);
+  border-radius: var(--radius); padding: 16px 18px; margin-bottom: 18px;
+}
+.tips-title { font-size: 0.82rem; font-weight: 700; color: var(--transit); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.tips-box p { font-size: 0.87rem; line-height: 1.7; }
+
+/* Accommodation bar */
+.accom-bar {
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.87rem; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+.accom-bar.confirmed { background: #EEF8F2; color: #2D7A4F; border: 1.5px solid #C6E8D4; }
+.accom-bar.tbc       { background: #FFF3E0; color: #C06B1A; border: 1.5px solid #F5D9B0; }
+
+/* Links section */
+.links-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+
+/* Day navigation */
+.day-nav { display: flex; justify-content: space-between; margin-top: 28px; gap: 10px; }
+.day-nav a {
+  flex: 1; display: block; text-align: center; padding: 12px;
+  background: var(--card-bg); border-radius: var(--radius); text-decoration: none;
+  color: var(--text); font-weight: 600; font-size: 0.85rem; box-shadow: var(--shadow);
+  transition: all 0.18s; border: 1.5px solid var(--border);
+}
+.day-nav a:hover { background: var(--bg); border-color: #CCC8C0; }
+.day-nav .home-link { flex: 0; padding: 12px 20px; background: var(--accent); color: #fff; border-color: var(--accent); }
+.day-nav .home-link:hover { background: #B53B22; }
+
+/* ── Phrases page ── */
+.phrase-section { margin-bottom: 28px; }
+.phrase-section-title {
+  font-size: 1rem; font-weight: 700; padding: 10px 16px; border-radius: 10px;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  background: var(--card-bg); border-left: 4px solid var(--accent); box-shadow: var(--shadow);
+}
+.phrase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+.phrase-card {
+  background: var(--card-bg); border-radius: var(--radius); padding: 14px 16px;
+  box-shadow: var(--shadow); border-top: 2px solid var(--border);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.phrase-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
+.phrase-japanese { font-size: 1.3rem; font-weight: 700; margin-bottom: 2px; color: var(--accent); }
+.phrase-romaji { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+.phrase-english { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+.phrase-tip { font-size: 0.75rem; margin-top: 6px; color: #8B6914; background: var(--kyoto-light); padding: 4px 8px; border-radius: 6px; }
+
+/* ── Form ── */
+.form-card { background: var(--card-bg); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 5px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px;
+  font-size: 0.92rem; font-family: inherit; transition: border-color 0.18s; background: var(--card-bg);
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.form-group textarea { min-height: 90px; resize: vertical; }
+.submit-btn {
+  background: var(--accent); color: #fff; border: none; padding: 12px 28px;
+  border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.18s;
+}
+.submit-btn:hover { background: #B53B22; }
+
+/* ── Footer ── */
+.site-footer {
+  text-align: center; padding: 20px; color: var(--muted); font-size: 0.8rem;
+  border-top: 1px solid var(--border); margin-top: 20px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .site-header h1 { font-size: 1.3rem; }
+  .container { padding: 16px 12px 32px; }
+  .cal-cell { min-height: 46px; }
+  .cal-day-num { font-size: 0.88rem; }
+  .cal-day-label { display: none; }
+  .day-header h1 { font-size: 1.25rem; }
+}
