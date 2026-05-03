@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant | Japan 2026</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    .assistant-wrap {
+      display: flex; flex-direction: column;
+      height: calc(100vh - 140px); /* fill below header+nav */
+      max-width: 780px; margin: 0 auto; padding: 0 16px 16px;
+    }
+
+    /* ── Config banner (shown only when WORKER_URL not set) ─────────────── */
+    .config-banner {
+      background: #FFF3CD; border: 1.5px solid #FBBF24; border-radius: 10px;
+      padding: 12px 16px; font-size: 0.85rem; margin-bottom: 12px; line-height: 1.6;
+    }
+    .config-banner strong { color: #92400E; }
+    .config-banner code { background: #FEF3C7; padding: 1px 5px; border-radius: 4px; font-size: 0.82rem; }
+
+    /* ── Intro card ─────────────────────────────────────────────────────── */
+    .intro-card {
+      background: var(--card-bg); border-radius: var(--radius); padding: 16px 18px;
+      box-shadow: var(--shadow); margin-bottom: 12px; flex-shrink: 0;
+    }
+    .intro-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .intro-card p  { font-size: 0.84rem; color: var(--muted); margin-bottom: 10px; }
+
+    .example-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .chip:hover { background: var(--transit-light); border-color: var(--transit); }
+
+    /* ── Chat messages ──────────────────────────────────────────────────── */
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 4px 0 8px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .msg.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700;
+    }
+    .avatar.ai   { background: var(--transit-light); color: var(--transit); }
+    .avatar.user { background: var(--tokyo-light); color: var(--tokyo); }
+
+    .bubble {
+      max-width: 80%; padding: 10px 14px; border-radius: 14px;
+      font-size: 0.87rem; line-height: 1.6; position: relative;
+    }
+    .bubble.ai   { background: var(--card-bg); box-shadow: var(--shadow); border-radius: 4px 14px 14px 14px; }
+    .bubble.user { background: var(--transit); color: #fff; border-radius: 14px 4px 14px 14px; }
+
+    /* Sources */
+    .sources {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .sources a { color: var(--transit); text-decoration: none; margin-right: 8px; }
+    .sources a:hover { text-decoration: underline; }
+
+    /* ── Proposed change card ────────────────────────────────────────────── */
+    .change-card {
+      background: var(--card-bg); border: 2px solid var(--kyoto);
+      border-radius: 12px; padding: 14px 16px; margin-top: 8px;
+      font-size: 0.84rem;
+    }
+    .change-card-title {
+      font-weight: 700; font-size: 0.82rem; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--kyoto); margin-bottom: 8px;
+    }
+    .change-preview {
+      background: var(--bg); border-radius: 8px; padding: 10px 12px;
+      font-size: 0.8rem; color: var(--text); margin-bottom: 10px;
+      border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word;
+    }
+    .change-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn-apply {
+      padding: 8px 18px; background: var(--kyoto); color: #fff; border: none;
+      border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s; font-family: inherit;
+    }
+    .btn-apply:hover { opacity: 0.88; }
+    .btn-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-discard {
+      padding: 8px 14px; background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 0.84rem; color: var(--muted); cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-discard:hover { background: var(--bg); }
+    .apply-status { font-size: 0.8rem; color: var(--muted); }
+    .apply-status.success { color: #2D7A4F; font-weight: 600; }
+    .apply-status.error   { color: var(--osaka); font-weight: 600; }
+
+    /* ── Thinking indicator ──────────────────────────────────────────────── */
+    .thinking-dots span {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); margin: 0 2px;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+    /* ── Input area ──────────────────────────────────────────────────────── */
+    .input-row {
+      display: flex; gap: 8px; padding-top: 10px;
+      border-top: 1.5px solid var(--border); flex-shrink: 0;
+    }
+    #user-input {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 10px 14px; font-size: 0.9rem; font-family: inherit;
+      color: var(--text); background: var(--card-bg); resize: none;
+      min-height: 44px; max-height: 140px; outline: none;
+      transition: border-color 0.15s;
+    }
+    #user-input:focus { border-color: var(--transit); }
+    #send-btn {
+      padding: 10px 18px; background: var(--transit); color: #fff;
+      border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    #send-btn:hover { opacity: 0.88; }
+    #send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .char-hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; text-align: right; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>🗾 Japan Family Vacation 2026</h1>
+  <p>Bansal–Jain Family · 18 May – 8 Jun 2026</p>
+</header>
+
+<nav class="site-nav">
+  <a href="index.html">📅 Calendar</a>
+  <a href="search.html">🔍 Search</a>
+  <a href="assistant.html" class="active">🤖 Assistant</a>
+  <a href="phrases.html">🗣 Phrases</a>
+  <a href="add.html">➕ Add</a>
+</nav>
+
+<!-- ══ CONFIG: paste your Cloudflare Worker URL here after deploying ══════════ -->
+<script>
+const WORKER_URL = 'YOUR_WORKER_URL_HERE';
+// e.g. 'https://japan-assistant.yourname.workers.dev'
+</script>
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+<div class="assistant-wrap">
+
+  <div id="config-banner" class="config-banner" style="display:none">
+    <strong>⚙️ Setup needed:</strong> Open <code>assistant.html</code> and replace <code>YOUR_WORKER_URL_HERE</code>
+    with your Cloudflare Worker URL. See <code>ASSISTANT_SETUP.md</code> in the same folder for step-by-step instructions.
+  </div>
+
+  <div class="intro-card">
+    <h2>🤖 Japan Trip Assistant</h2>
+    <p>Ask anything about Japan — latest opening hours, vegetarian restaurants, transit tips — or ask me to add something to your itinerary. Powered by Perplexity with live web search.</p>
+    <div class="example-chips">
+      <span class="chip" onclick="prefill(this)">Best vegetarian ramen in Kyoto?</span>
+      <span class="chip" onclick="prefill(this)">Add a pottery class in Kyoto Day 10</span>
+      <span class="chip" onclick="prefill(this)">Is DisneySea worth it for young kids?</span>
+      <span class="chip" onclick="prefill(this)">Tax-free shopping tips for Osaka</span>
+      <span class="chip" onclick="prefill(this)">Hakone ropeway — open in June 2026?</span>
+      <span class="chip" onclick="prefill(this)">Add a hack about IC card for Day 1</span>
+    </div>
+  </div>
+
+  <div class="chat-messages" id="chat"></div>
+
+  <div>
+    <div class="input-row">
+      <textarea id="user-input" placeholder="Ask about Japan or say 'Add a restaurant to Day 8 in Kyoto…'" rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="send-btn" onclick="sendMessage()">Send →</button>
+    </div>
+    <div class="char-hint">Press Enter to send · Shift+Enter for new line</div>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const messages = []; // Perplexity conversation history
+let thinking = false;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  if (!WORKER_URL || WORKER_URL === 'YOUR_WORKER_URL_HERE') {
+    document.getElementById('config-banner').style.display = 'block';
+  }
+  document.getElementById('user-input').focus();
+});
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function prefill(el) {
+  const input = document.getElementById('user-input');
+  input.value = el.textContent;
+  autoResize(input);
+  input.focus();
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function scrollToBottom() {
+  const chat = document.getElementById('chat');
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ── Render user message ───────────────────────────────────────────────────────
+function appendUserMsg(text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `
+    <div class="avatar user">A</div>
+    <div class="bubble user">${escHtml(text)}</div>
+  `;
+  chat.appendChild(div);
+  scrollToBottom();
+}
+
+// ── Render thinking indicator ──────────────────────────────────────────────────
+function appendThinking() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg'; div.id = 'thinking-msg';
+  div.innerHTML = `
+    <div class="avatar ai">🤖</div>
+    <div class="bubble ai">
+      <span class="thinking-dots"><span></span><span></span><span></span></span>
+      <span style="font-size:0.78rem;color:var(--muted);margin-left:6px">Searching the web…</span>
+    </div>
+  `;
+  chat.appendChild(div);
+  scrollToBottom();
+}
+
+function removeThinking() {
+  const el = document.getElementById('thinking-msg');
+  if (el) el.remove();
+}
+
+// ── Render AI response ────────────────────────────────────────────────────────
+function appendAiMsg(text, citations, changeData) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg';
+
+  // Sources block
+  let sourcesHtml = '';
+  if (citations && citations.length > 0) {
+    const links = citations.slice(0, 5).map((c, i) =>
+      `<a href="${escHtml(c.url || c)}" target="_blank" rel="noopener">[${i+1}] ${escHtml(truncate(c.title || c.url || c, 40))}</a>`
+    ).join('');
+    sourcesHtml = `<div class="sources">🔗 Sources: ${links}</div>`;
+  }
+
+  // Change proposal card
+  let changeHtml = '';
+  if (changeData) {
+    const preview = formatChangePreview(changeData);
+    const uid = 'change_' + Date.now();
+    changeHtml = `
+      <div class="change-card" id="${uid}">
+        <div class="change-card-title">📝 Proposed Itinerary Change</div>
+        <div class="change-preview">${escHtml(preview)}</div>
+        <div class="change-actions">
+          <button class="btn-apply" onclick="applyChange('${uid}', ${escJson(changeData)})">✅ Apply to Itinerary</button>
+          <button class="btn-discard" onclick="discardChange('${uid}')">Discard</button>
+          <span class="apply-status" id="${uid}_status"></span>
+        </div>
+      </div>`;
+  }
+
+  div.innerHTML = `
+    <div class="avatar ai">🤖</div>
+    <div style="max-width:85%">
+      <div class="bubble ai">${mdToHtml(text)}${sourcesHtml}</div>
+      ${changeHtml}
+    </div>
+  `;
+  chat.appendChild(div);
+  scrollToBottom();
+}
+
+// ── Parse Perplexity response for itinerary_change JSON blocks ─────────────────
+function extractChange(text) {
+  const match = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (!match) return { cleanText: text, change: null };
+  try {
+    const data = JSON.parse(match[1]);
+    if (data.type === 'itinerary_change') {
+      const cleanText = text.replace(/```json[\s\S]*?```/g, '').trim();
+      return { cleanText, change: data };
+    }
+  } catch (e) {}
+  return { cleanText: text, change: null };
+}
+
+// ── Format the change for the preview box ─────────────────────────────────────
+function formatChangePreview(change) {
+  const dateObj = new Date(change.date + 'T00:00:00');
+  const dateLabel = dateObj.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+  const day = TRIP_DATA.days.find(d => d.date === change.date);
+  const dayLabel = day ? ` (Day ${day.day} · ${day.theme})` : '';
+
+  let itemStr = '';
+  if (typeof change.item === 'string') {
+    itemStr = change.item;
+  } else {
+    itemStr = Object.entries(change.item)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+  }
+
+  return `📅 ${dateLabel}${dayLabel}\n📂 Field: ${change.field}\n➕ Add:\n${itemStr}`;
+}
+
+// ── Apply the change via Cloudflare Worker ────────────────────────────────────
+async function applyChange(uid, change) {
+  const btn     = document.querySelector(`#${uid} .btn-apply`);
+  const discard = document.querySelector(`#${uid} .btn-discard`);
+  const status  = document.getElementById(`${uid}_status`);
+
+  btn.disabled = true;
+  btn.textContent = 'Applying…';
+  status.textContent = '';
+  status.className = 'apply-status';
+
+  try {
+    const res = await fetch(`${WORKER_URL}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date:   change.date,
+        field:  change.field,
+        action: change.action,
+        item:   change.item,
+      }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      status.textContent = `✅ Done! Commit ${data.commit}. Site rebuilds in ~60s.`;
+      status.className = 'apply-status success';
+      btn.style.display = 'none';
+      discard.style.display = 'none';
+      // Link to the updated day page
+      const dayLink = document.createElement('a');
+      dayLink.href = `day.html?date=${change.date}`;
+      dayLink.textContent = '→ View day';
+      dayLink.style.cssText = 'font-size:0.8rem;color:var(--transit);margin-left:8px';
+      document.querySelector(`#${uid} .change-actions`).appendChild(dayLink);
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch (err) {
+    status.textContent = `❌ ${err.message}`;
+    status.className = 'apply-status error';
+    btn.disabled = false;
+    btn.textContent = '✅ Apply to Itinerary';
+  }
+}
+
+function discardChange(uid) {
+  const card = document.getElementById(uid);
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
+}
+
+// ── Main send function ────────────────────────────────────────────────────────
+async function sendMessage() {
+  if (thinking) return;
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!WORKER_URL || WORKER_URL === 'YOUR_WORKER_URL_HERE') {
+    alert('Please configure your Cloudflare Worker URL in assistant.html first.\nSee ASSISTANT_SETUP.md for instructions.');
+    return;
+  }
+
+  input.value = '';
+  autoResize(input);
+  document.getElementById('send-btn').disabled = true;
+  thinking = true;
+
+  appendUserMsg(text);
+  messages.push({ role: 'user', content: text });
+  appendThinking();
+
+  try {
+    const res = await fetch(`${WORKER_URL}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    });
+
+    if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+    const data = await res.json();
+
+    removeThinking();
+
+    const rawText = data.choices?.[0]?.message?.content || 'No response received.';
+    const citations = data.citations || [];
+    const { cleanText, change } = extractChange(rawText);
+
+    messages.push({ role: 'assistant', content: rawText });
+    appendAiMsg(cleanText, citations, change);
+
+  } catch (err) {
+    removeThinking();
+    appendAiMsg(`⚠️ Error: ${err.message}. Please check your Worker URL and API keys.`, [], null);
+  }
+
+  thinking = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('user-input').focus();
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escJson(obj) {
+  return "'" + JSON.stringify(obj).replace(/'/g, "\\'") + "'";
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
+
+// Very minimal markdown → HTML (bold, italic, bullets, line breaks)
+function mdToHtml(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul style="margin:6px 0 6px 18px;padding:0">$1</ul>')
+    .replace(/\n/g, '<br>');
+}
+</script>
+
+</body>
+</html>
