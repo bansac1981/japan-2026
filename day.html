@@ -868,4 +868,18 @@ function renderDayNotes(){
     buildCalendar(day.activities, startLoc) +
     '<div class="info-grid">' +
       buildFood(day.food) +
-      buildShopping(day.shoppin
+      buildShopping(day.shopping) +
+    '</div>' +
+    buildFacts(day.facts) +
+    buildHacks(day.hacks) +
+    buildLinks(day) +
+    '<div class="day-nav">' +
+      (prevDate ? '<a class="day-nav-btn" href="day.html?date='+prevDate+'">← '+labelForDate(prevDate)+'</a>' : '<span></span>') +
+      (nextDate ? '<a class="day-nav-btn" href="day.html?date='+nextDate+'">'+labelForDate(nextDate)+' →</a>' : '<span></span>') +
+    '</div>';
+
+  renderDayNotes();
+})();
+</script>
+</body>
+</html>
