@@ -95,7 +95,10 @@ function json(data, status = 200, env) {
 // Convert a JS value into a JS source literal (single-quoted strings, nested objects)
 function toJsLiteral(val, indent = '        ') {
   if (typeof val === 'string') {
-    const escaped = val.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const escaped = val
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/[-￿]/g, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
     return `'${escaped}'`;
   }
   if (typeof val === 'object' && val !== null) {
@@ -162,7 +165,7 @@ async function handleAsk(request, env) {
         tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 1800,
+          maxOutputTokens: 8192,
         },
       }),
     }

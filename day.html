@@ -71,20 +71,30 @@
     .cal-event.tiny .cal-event-time { display: none; }
     .cal-event.tiny .cal-event-name { font-size: 0.68rem; }
 
-    /* Expanded detail popover */
-    .cal-event-detail {
-      display: none; position: absolute; left: 0; top: 100%;
-      min-width: 240px; max-width: 340px; width: max-content;
+    /* Detail panel — fixed overlay (avoids overflow-clip from scroll container) */
+    .cal-detail-panel {
+      position: fixed; z-index: 600;
+      min-width: 260px; max-width: 340px;
       background: var(--card-bg); color: var(--text);
-      border-radius: 0 10px 10px 10px;
-      border: 1.5px solid var(--border);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.18);
-      padding: 10px 12px; font-size: 0.81rem; z-index: 40;
+      border-radius: 12px; border: 1.5px solid var(--border);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+      padding: 12px 14px; font-size: 0.82rem;
+      display: none;
     }
-    .cal-event.expanded .cal-event-detail { display: block; }
-    .cal-event-detail-row { margin-bottom: 5px; line-height: 1.5; }
-    .cal-event-detail-notes { color: var(--muted); font-size: 0.77rem; margin-bottom: 6px; line-height: 1.45; }
-    .cal-event-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .cal-detail-panel.open { display: block; }
+    .cal-detail-panel-title {
+      font-weight: 700; font-size: 0.9rem; margin-bottom: 8px;
+      padding-right: 24px; line-height: 1.3;
+    }
+    .cal-detail-close {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; font-size: 1rem;
+      cursor: pointer; color: var(--muted); padding: 2px 4px;
+    }
+    .cal-detail-close:hover { color: var(--text); }
+    .cal-detail-row { margin-bottom: 5px; line-height: 1.5; }
+    .cal-detail-notes { color: var(--muted); font-size: 0.77rem; margin-bottom: 8px; line-height: 1.45; }
+    .cal-event-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
     .ceb {
       padding: 4px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 500;
       border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
@@ -219,6 +229,14 @@
   <p style="text-align:center;padding:60px;color:#999">Loading…</p>
 </div>
 
+<!-- Shared event detail panel (fixed overlay, avoids scroll-clip) -->
+<div class="cal-detail-panel" id="cal-detail-panel">
+  <button class="cal-detail-close" onclick="closeCalDetail()" title="Close">✕</button>
+  <div class="cal-detail-panel-title" id="cdp-title"></div>
+  <div id="cdp-body"></div>
+</div>
+<div class="cal-note-backdrop" id="cal-detail-backdrop" onclick="closeCalDetail()" style="display:none"></div>
+
 <!-- Note overlay (shared across all calendar events) -->
 <div class="cal-note-backdrop" id="cal-note-backdrop" onclick="closeCalNote()"></div>
 <div class="cal-note-overlay" id="cal-note-overlay">
@@ -297,14 +315,60 @@ function assignLanes(evs) {
   });
 }
 
-// ── Calendar event toggle (expand / collapse) ────────────────────────────────
-function toggleCalEvent(id) {
-  var el=document.getElementById(id);
-  if(!el)return;
-  var wasOpen=el.classList.contains('expanded');
-  // Close all
-  document.querySelectorAll('.cal-event.expanded').forEach(function(e){e.classList.remove('expanded');});
-  if(!wasOpen)el.classList.add('expanded');
+// ── Cal detail panel (fixed overlay) ─────────────────────────────────────────
+var _calDetailKey = null;
+// CAL_DETAILS is populated by buildCalendar: key → {name, timeDisp, cost, ticket, notes, mapHref, photoHref, approx}
+var CAL_DETAILS = {};
+
+function toggleCalEvent(key, eventEl) {
+  var panel = document.getElementById('cal-detail-panel');
+  if (_calDetailKey === key) { closeCalDetail(); return; }
+  _calDetailKey = key;
+
+  var d = CAL_DETAILS[key];
+  if (!d) return;
+
+  // Populate
+  document.getElementById('cdp-title').textContent = d.name;
+  var approxTag = d.approx ? ' <span style="opacity:.7;font-size:.68rem">(approx)</span>' : '';
+  var bodyHtml =
+    (d.timeDisp ? '<div class="cal-detail-row">⏱ ' + escHtml(d.timeDisp) + approxTag + '</div>' : '') +
+    (d.cost      ? '<div class="cal-detail-row">💴 ' + escHtml(d.cost)    + '</div>' : '') +
+    (d.ticket    ? '<div class="cal-detail-row">🎫 ' + escHtml(d.ticket)  + '</div>' : '') +
+    (d.notes     ? '<div class="cal-detail-notes">' + escHtml(d.notes)    + '</div>' : '') +
+    '<div class="cal-event-btns">' +
+      (d.mapHref   ? '<a href="'+d.mapHref+'" target="_blank" class="ceb">🗺 Directions</a>' : '') +
+      '<a href="'+d.photoHref+'" target="_blank" class="ceb">📸 Photos</a>' +
+      '<button class="ceb" id="calnbtn_'+key+'" data-key="'+key+'" data-name="'+escHtml(d.name)+'" '+
+        'onclick="openCalNote(this.dataset.key,this.dataset.name)">📝 Note</button>' +
+      '<button class="ceb del" id="caldbtn_'+key+'" data-key="'+key+'" data-name="'+escHtml(d.name)+'" '+
+        'onclick="calDeleteItem(this.dataset.key,this.dataset.name)">🗑 Hide</button>' +
+    '</div>';
+  document.getElementById('cdp-body').innerHTML = bodyHtml;
+
+  // Update note button state
+  updateCalNoteBtnState(key, getNotes());
+
+  // Position near the clicked block, keep on screen
+  var rect = eventEl ? eventEl.getBoundingClientRect() : {left:50,top:100,right:200,bottom:150};
+  panel.style.display = 'block'; // measure it
+  var pw = panel.offsetWidth, ph = panel.offsetHeight;
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var left = Math.min(rect.right + 6, vw - pw - 8);
+  if (left < 8) left = Math.max(8, rect.left - pw - 6);
+  var top  = Math.min(rect.top, vh - ph - 8);
+  if (top  < 8) top = 8;
+  panel.style.left = left + 'px';
+  panel.style.top  = top  + 'px';
+  panel.classList.add('open');
+  document.getElementById('cal-detail-backdrop').style.display = 'block';
+}
+
+function closeCalDetail() {
+  document.getElementById('cal-detail-panel').classList.remove('open');
+  document.getElementById('cal-detail-panel').style.display = 'none';
+  document.getElementById('cal-detail-backdrop').style.display = 'none';
+  _calDetailKey = null;
 }
 
 // ── Note overlay for calendar events ─────────────────────────────────────────
@@ -552,6 +616,10 @@ function renderDayNotes(){
       if (t) scheduled.push({ act: act, t: t, origIdx: i });
       else   unscheduled.push({ act: act, origIdx: i });
     });
+
+    // Sort scheduled activities by start time so new AI-added items slot in correctly
+    scheduled.sort(function(a, b) { return a.t.start - b.t.start; });
+
     assignLanes(scheduled);
 
     // ── Time labels column ────────────────────────────────────────────────────
@@ -585,8 +653,8 @@ function renderDayNotes(){
 
     // ── Event blocks ──────────────────────────────────────────────────────────
     var eventsHtml = '';
-    scheduled.forEach(function(item) {
-      var act=item.act, t=item.t, lane=item.lane, numLanes=item.numLanes, origIdx=item.origIdx;
+    scheduled.forEach(function(item, si) {
+      var act=item.act, t=item.t, lane=item.lane, numLanes=item.numLanes;
       var key = makeKey(day.date, 'activities', act.name);
       var top  = Math.round((t.start - GRID_START) * PX);
       var h    = Math.max(28, Math.round((t.end - t.start) * PX));
@@ -598,44 +666,30 @@ function renderDayNotes(){
       var leftStyle = 'calc('+leftPct+'% + 2px)';
       var widthStyle= 'calc('+widthPct+'% - 4px)';
 
-      // Directions (from previous stop or start location)
-      var origin = origIdx === 0 ? startLoc : (activities[origIdx-1].location || startLoc);
-      var mapHref = act.location ? mapsLink(origin, act.location) : null;
+      // Directions: use previous scheduled item's location (sorted by time)
+      var prevLoc = si > 0 ? (scheduled[si-1].act.location || startLoc) : startLoc;
+      var mapHref   = act.location ? mapsLink(prevLoc, act.location) : null;
       var photoHref = photosLink(act.name);
-
-      var approxTag = t.approx ? ' <span style="opacity:.7;font-size:.65rem">(approx)</span>' : '';
       var timeDisp  = act.time || '';
 
-      var detailHtml =
-        '<div class="cal-event-detail" onclick="event.stopPropagation()">' +
-          (timeDisp ? '<div class="cal-event-detail-row">⏱ '+escHtml(timeDisp)+approxTag+'</div>' : '') +
-          (act.cost   ? '<div class="cal-event-detail-row">💴 '+escHtml(act.cost)+'</div>' : '') +
-          (act.ticket ? '<div class="cal-event-detail-row">🎫 '+escHtml(act.ticket)+'</div>' : '') +
-          (act.notes  ? '<div class="cal-event-detail-notes">'+escHtml(act.notes)+'</div>' : '') +
-          '<div class="cal-event-btns">' +
-            (mapHref ? '<a href="'+mapHref+'" target="_blank" class="ceb" onclick="event.stopPropagation()">🗺 Directions</a>' : '') +
-            '<a href="'+photoHref+'" target="_blank" class="ceb" onclick="event.stopPropagation()">📸 Photos</a>' +
-            '<button class="ceb" id="calnbtn_'+key+'" '+
-              'data-key="'+key+'" data-name="'+escHtml(act.name)+'" '+
-              'onclick="event.stopPropagation();openCalNote(this.dataset.key,this.dataset.name)">📝 Note</button>' +
-            '<button class="ceb del" id="caldbtn_'+key+'" '+
-              'data-key="'+key+'" data-name="'+escHtml(act.name)+'" '+
-              'onclick="event.stopPropagation();calDeleteItem(this.dataset.key,this.dataset.name)">🗑 Hide</button>' +
-          '</div>' +
-        '</div>';
+      // Register detail data in global map (used by toggleCalEvent fixed overlay)
+      CAL_DETAILS[key] = {
+        name: act.name, timeDisp: timeDisp,
+        cost: act.cost||'', ticket: act.ticket||'', notes: act.notes||'',
+        mapHref: mapHref, photoHref: photoHref, approx: !!t.approx
+      };
 
       eventsHtml +=
         '<div class="cal-event'+(isTiny?' tiny':'')+'" '+
           'id="cale_'+key+'" '+
           'data-key="'+key+'" '+
           'style="top:'+top+'px;height:'+h+'px;left:'+leftStyle+';width:'+widthStyle+';background:'+bgColor+'" '+
-          'onclick="toggleCalEvent(\'cale_'+key+'\')" '+
+          'onclick="toggleCalEvent(''+key+'',this)" '+
           'title="'+escHtml(act.name)+(act.time?' · '+escHtml(act.time):'')+'">' +
           '<div class="cal-event-header">' +
             '<div class="cal-event-name">'+escHtml(act.name)+'</div>' +
             (!isTiny && timeDisp ? '<div class="cal-event-time">'+escHtml(timeDisp)+'</div>' : '') +
           '</div>' +
-          detailHtml +
         '</div>';
     });
 
@@ -814,26 +868,4 @@ function renderDayNotes(){
     buildCalendar(day.activities, startLoc) +
     '<div class="info-grid">' +
       buildFood(day.food) +
-      buildShopping(day.shopping) +
-      buildFacts(day.facts) +
-    '</div>' +
-    buildHacks(day.hacks) +
-    buildLinks(day) +
-    '<div id="day-notes-section" style="display:none"></div>' +
-    '<div class="day-nav">' +
-      (prevDate?'<a href="day.html?date='+prevDate+'" class="day-nav-btn prev">← '+escHtml(labelForDate(prevDate))+'</a>':'<span></span>') +
-      '<a href="index.html" class="day-nav-btn">📅 Calendar</a>' +
-      (nextDate?'<a href="day.html?date='+nextDate+'" class="day-nav-btn next">'+escHtml(labelForDate(nextDate))+' →</a>':'<span></span>') +
-    '</div>';
-
-  // Apply saved states + scroll to 8am
-  initAllStates();
-  var calScroll=document.querySelector('.cal-scroll');
-  if(calScroll){
-    var scrollTo=Math.max(0,(8-GRID_START)*PX-20);
-    calScroll.scrollTop=scrollTo;
-  }
-})();
-</script>
-</body>
-</html>
+      buildShopping(day.shoppin

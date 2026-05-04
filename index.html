@@ -86,35 +86,34 @@
         <div class="cal-header-cell">Fri</div>
         <div class="cal-header-cell">Sat</div>
 
-        <!-- May 2026 starts on Friday (day index 5) -->
+        <!-- May 2026: May 1 = Friday → 5 empty cells (Sun–Thu) before it -->
         <div class="cal-cell empty"></div><!-- Sun -->
         <div class="cal-cell empty"></div><!-- Mon -->
         <div class="cal-cell empty"></div><!-- Tue -->
         <div class="cal-cell empty"></div><!-- Wed -->
         <div class="cal-cell empty"></div><!-- Thu -->
-        <div class="cal-cell empty"></div><!-- Fri May 1 (no trip) -->
-        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">1</div>
+        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">1</div><!-- Fri -->
+        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">2</div><!-- Sat -->
 
         <!-- Week 2: May 3–9 -->
-        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">2</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">3</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">4</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">5</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">6</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">7</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">8</div>
+        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">9</div>
 
         <!-- Week 3: May 10–16 -->
-        <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">9</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">10</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">11</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">12</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">13</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">14</div>
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">15</div>
-
-        <!-- Week 4: May 17–23 -->
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">16</div>
+
+        <!-- Week 4: May 17(Sun)–23(Sat) · Trip starts Mon 18 -->
         <div class="cal-cell empty" style="color:#ccc;font-size:0.8rem">17</div>
         <a href="day.html?date=2026-05-18" class="cal-cell trip-day transit">
           <span class="cal-day-num">18</span>
@@ -136,12 +135,12 @@
           <span class="cal-day-num">22</span>
           <span class="cal-day-label">teamLab</span>
         </a>
-
-        <!-- Week 5: May 24–30 -->
         <a href="day.html?date=2026-05-23" class="cal-cell trip-day tokyo">
           <span class="cal-day-num">23</span>
           <span class="cal-day-label">Shibuya</span>
         </a>
+
+        <!-- Week 5: May 24(Sun)–30(Sat) -->
         <a href="day.html?date=2026-05-24" class="cal-cell trip-day tokyo">
           <span class="cal-day-num">24</span>
           <span class="cal-day-label">Akihabara</span>
@@ -166,16 +165,17 @@
           <span class="cal-day-num">29</span>
           <span class="cal-day-label">Nara</span>
         </a>
-
-        <!-- Week 6: May 31 -->
         <a href="day.html?date=2026-05-30" class="cal-cell trip-day kyoto">
           <span class="cal-day-num">30</span>
           <span class="cal-day-label">Kimono</span>
         </a>
+
+        <!-- Week 6: May 31(Sun) -->
         <a href="day.html?date=2026-05-31" class="cal-cell trip-day kyoto">
           <span class="cal-day-num">31</span>
           <span class="cal-day-label">Nijo Castle</span>
         </a>
+        <div class="cal-cell empty"></div>
         <div class="cal-cell empty"></div>
         <div class="cal-cell empty"></div>
         <div class="cal-cell empty"></div>
