@@ -138,7 +138,7 @@ const TRIP_DATA = {
         {
           name: 'LEGOLAND Discovery Center Tokyo',
           time: 'Full day (approx. 2-3 hours inside)',
-          cost: '¥2300 per person (online booking recommended for discount)',
+          cost: 'Â¥2300 per person (online booking recommended for discount)',
           notes: 'Indoor LEGO-themed attraction, ideal for children aged 3-10. Adults must be accompanied by a child. Features rides, 4D cinema, Miniland, and building areas. Located in Odaiba.',
           location: 'Decks Tokyo Beach, Odaiba',
           ticket: 'Purchase online in advance for a discount and priority entry.'
