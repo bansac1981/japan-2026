@@ -167,7 +167,7 @@ const WORKER_URL = 'https://japan-trip-assistant.bansalachin.workers.dev';
 
   <div class="intro-card">
     <h2>🤖 Japan Trip Assistant</h2>
-    <p>Ask anything about Japan — latest opening hours, vegetarian restaurants, transit tips — or ask me to add something to your itinerary. Powered by Gemini 2.0 with live Google Search.</p>
+    <p>Ask anything about Japan — latest opening hours, vegetarian restaurants, transit tips — or ask me to add something to your itinerary. Powered by Gemini 2.5 Flash with live Google Search.</p>
     <div class="example-chips">
       <span class="chip" onclick="prefill(this)">Best vegetarian ramen in Kyoto?</span>
       <span class="chip" onclick="prefill(this)">Add a pottery class in Kyoto Day 10</span>
@@ -194,7 +194,8 @@ const WORKER_URL = 'https://japan-trip-assistant.bansalachin.workers.dev';
 <script src="data.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-const messages = []; // Perplexity conversation history
+const messages = []; // conversation history
+const PENDING_CHANGES = {}; // uid → changeData, avoids JSON-in-onclick quoting issues
 let thinking = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -281,12 +282,13 @@ function appendAiMsg(text, citations, changeData) {
   if (changeData) {
     const preview = formatChangePreview(changeData);
     const uid = 'change_' + Date.now();
+    PENDING_CHANGES[uid] = changeData; // store so onclick can retrieve by uid
     changeHtml = `
       <div class="change-card" id="${uid}">
         <div class="change-card-title">📝 Proposed Itinerary Change</div>
         <div class="change-preview">${escHtml(preview)}</div>
         <div class="change-actions">
-          <button class="btn-apply" onclick="applyChange('${uid}', ${escJson(changeData)})">✅ Apply to Itinerary</button>
+          <button class="btn-apply" onclick="applyChange('${uid}')">✅ Apply to Itinerary</button>
           <button class="btn-discard" onclick="discardChange('${uid}')">Discard</button>
           <span class="apply-status" id="${uid}_status"></span>
         </div>
@@ -339,7 +341,9 @@ function formatChangePreview(change) {
 }
 
 // ── Apply the change via Cloudflare Worker ────────────────────────────────────
-async function applyChange(uid, change) {
+async function applyChange(uid) {
+  const change = PENDING_CHANGES[uid];
+  if (!change) { console.error('No pending change for uid:', uid); return; }
   const btn     = document.querySelector(`#${uid} .btn-apply`);
   const discard = document.querySelector(`#${uid} .btn-discard`);
   const status  = document.getElementById(`${uid}_status`);
@@ -417,7 +421,11 @@ async function sendMessage() {
       body: JSON.stringify({ messages }),
     });
 
-    if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+    if (!res.ok) {
+      let errMsg = `Worker returned ${res.status}`;
+      try { const errData = await res.json(); errMsg = errData.error || errMsg; } catch {}
+      throw new Error(errMsg);
+    }
     const data = await res.json();
 
     removeThinking();
@@ -444,10 +452,6 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function escJson(obj) {
-  return "'" + JSON.stringify(obj).replace(/'/g, "\\'") + "'";
-}
-
 function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
 
 // Very minimal markdown → HTML (bold, italic, bullets, line breaks)
@@ -458,9 +462,4 @@ function mdToHtml(text) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gs, '<ul style="margin:6px 0 6px 18px;padding:0">$1</ul>')
-    .replace(/\n/g, '<br>');
-}
-</script>
-
-</body>
-</html>
+    .replace(/\n/g, '<br>'
