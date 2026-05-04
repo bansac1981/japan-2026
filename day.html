@@ -5,6 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Loading... | Japan 2026</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Item controls (delete + note) ───────────────────────────────────────── */
+    .activity-card { position: relative; }
+    .info-item     { position: relative; }
+    .hack-item     { position: relative; }
+
+    .item-ctrls {
+      position: absolute; top: 8px; right: 8px;
+      display: flex; gap: 4px; z-index: 2;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .activity-card:hover .item-ctrls,
+    .info-item:hover     .item-ctrls,
+    .hack-item:hover     .item-ctrls { opacity: 1; }
+    @media (pointer: coarse) { .item-ctrls { opacity: 0.75; } }
+
+    .ctrl-btn {
+      padding: 4px 7px; border-radius: 6px;
+      border: 1.5px solid var(--border); background: var(--card-bg);
+      font-size: 0.76rem; cursor: pointer; font-family: inherit;
+      transition: all 0.15s; line-height: 1.3; white-space: nowrap;
+    }
+    .ctrl-btn:hover  { background: var(--bg); }
+    .ctrl-del:hover  { background: #FEE2E2; border-color: #FCA5A5; color: #DC2626; }
+    .ctrl-restore    { background: #F0FDF4 !important; border-color: #86EFAC !important; color: #166534 !important; }
+    .ctrl-save       { background: #FEFCE8; border-color: #FDE68A; }
+    .ctrl-save:hover { background: #FEF3C7; }
+
+    /* ── Deleted state ───────────────────────────────────────────────────────── */
+    .item-deleted { opacity: 0.22; filter: grayscale(70%); }
+    .item-deleted .note-panel { display: none !important; }
+    .item-deleted .item-ctrls { opacity: 1 !important; }
+
+    /* ── Replaced state ──────────────────────────────────────────────────────── */
+    .item-replaced { opacity: 0.30; background: #f5f5f5 !important; border-color: #e0e0e0 !important; }
+    .item-replaced .item-ctrls { opacity: 1 !important; }
+    .replaced-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      background: #e5e7eb; color: #6b7280; padding: 2px 9px;
+      border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.3px;
+    }
+
+    /* ── Note panel ──────────────────────────────────────────────────────────── */
+    .note-panel {
+      margin-top: 8px; padding: 10px 12px;
+      background: #FEFCE8; border: 1.5px solid #FDE68A; border-radius: 8px;
+    }
+    .note-voice-row { display: flex; gap: 6px; align-items: flex-start; }
+    .note-voice-row textarea {
+      flex: 1; border: 1px solid #FDE68A; border-radius: 6px;
+      padding: 7px 10px; font-size: 0.83rem; font-family: inherit;
+      resize: vertical; min-height: 56px; background: #fff; box-sizing: border-box;
+    }
+    .note-voice-row textarea:focus { outline: none; border-color: #F59E0B; box-shadow: 0 0 0 2px #FEF3C7; }
+    .note-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+    /* ── Day notes summary ───────────────────────────────────────────────────── */
+    #day-notes-section { margin-top: 20px; }
+    .note-summary-item {
+      padding: 10px 14px; border: 1.5px solid #FDE68A;
+      border-radius: 8px; margin-bottom: 8px; background: #FEFCE8;
+    }
+    .note-summary-label {
+      font-size: 0.72rem; font-weight: 700; color: #92400E;
+      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;
+    }
+    .note-summary-text { font-size: 0.85rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    .note-summary-meta { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+    .note-edit-link { font-size: 0.72rem; color: var(--transit); cursor: pointer; margin-left: 8px; }
+    .note-edit-link:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
 
@@ -30,9 +101,178 @@
   Japan Family Vacation 2026 · Bansal–Jain Family · 🗾
 </footer>
 
+<!-- ── Global helpers (must be global because called from onclick="...") ──────── -->
+<script>
+// ── localStorage helpers ──────────────────────────────────────────────────────
+function lsGet(k, def) { try { const v = JSON.parse(localStorage.getItem(k)); return v != null ? v : def; } catch { return def; } }
+function lsSet(k, v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function getDeleted()  { return new Set(lsGet('japan2026_deleted',  [])); }
+function getReplaced() { return new Set(lsGet('japan2026_replaced', [])); }
+function getNotes()    { return lsGet('japan2026_notes', {}); }
+
+// ── Item key ──────────────────────────────────────────────────────────────────
+function makeKey(date, field, name) {
+  return date + '__' + field + '__' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40);
+}
+
+// ── Delete / Restore ──────────────────────────────────────────────────────────
+function toggleDeleteItem(key) {
+  const deleted = getDeleted();
+  const el  = document.querySelector('[data-key="' + key + '"]');
+  const btn = document.getElementById('dbtn_' + key);
+
+  if (deleted.has(key)) {
+    // Restore
+    deleted.delete(key); lsSet('japan2026_deleted', [...deleted]);
+    if (el)  { el.classList.remove('item-deleted'); }
+    if (btn) { btn.textContent = '🗑'; btn.title = 'Remove item'; btn.classList.remove('ctrl-restore'); }
+  } else {
+    // Delete with confirmation
+    const nameEl = el && (el.querySelector('.activity-name') || el.querySelector('strong'));
+    const name   = nameEl ? nameEl.textContent.trim() : 'this item';
+    if (!confirm('Hide "' + name + '" from view?\n\nStored in this browser only — tap 🗑 button again to restore.')) return;
+    deleted.add(key); lsSet('japan2026_deleted', [...deleted]);
+    if (el)  { el.classList.add('item-deleted'); }
+    if (btn) { btn.textContent = '↩'; btn.title = 'Restore item'; btn.classList.add('ctrl-restore'); }
+  }
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+function toggleNote(key) {
+  const panel = document.getElementById('np_' + key);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  // Close all open panels first
+  document.querySelectorAll('.note-panel').forEach(p => p.style.display = 'none');
+  if (!isOpen) {
+    panel.style.display = 'block';
+    const ta = document.getElementById('nt_' + key);
+    if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  }
+}
+
+function closeNote(key) {
+  const p = document.getElementById('np_' + key);
+  if (p) p.style.display = 'none';
+}
+
+function saveNote(key) {
+  const ta   = document.getElementById('nt_' + key);
+  const text = ta ? ta.value.trim() : '';
+  const notes = getNotes();
+  if (text) notes[key] = { text, at: new Date().toISOString() };
+  else       delete notes[key];
+  lsSet('japan2026_notes', notes);
+  closeNote(key);
+  updateNoteBtnState(key, notes);
+  renderDayNotes();
+}
+
+function updateNoteBtnState(key, notes) {
+  if (!notes) notes = getNotes();
+  const btn = document.getElementById('nbtn_' + key);
+  if (!btn) return;
+  const has = !!notes[key];
+  btn.textContent   = has ? '📝✓' : '📝';
+  btn.title         = has ? 'Edit note' : 'Add note';
+  btn.style.background   = has ? '#FEFCE8' : '';
+  btn.style.borderColor  = has ? '#F59E0B' : '';
+  btn.style.fontWeight   = has ? '700' : '';
+}
+
+// ── Voice input ───────────────────────────────────────────────────────────────
+let _voiceRec = null;
+function startVoice(key) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Voice input works in Chrome or Edge. Try typing instead.'); return; }
+  const btn = document.getElementById('vbtn_' + key);
+  if (_voiceRec) {
+    _voiceRec.stop(); _voiceRec = null;
+    if (btn) { btn.textContent = '🎙'; btn.style.color = ''; }
+    return;
+  }
+  _voiceRec = new SR();
+  _voiceRec.lang = 'en-US'; _voiceRec.continuous = false; _voiceRec.interimResults = false;
+  if (btn) { btn.textContent = '⏹'; btn.style.color = '#DC2626'; }
+  _voiceRec.onresult = e => {
+    const ta = document.getElementById('nt_' + key);
+    if (ta) ta.value = (ta.value ? ta.value + ' ' : '') + e.results[0][0].transcript;
+  };
+  _voiceRec.onend = _voiceRec.onerror = () => {
+    if (btn) { btn.textContent = '🎙'; btn.style.color = ''; }
+    _voiceRec = null;
+  };
+  _voiceRec.start();
+}
+
+// ── Apply localStorage states after page render ───────────────────────────────
+function initAllStates() {
+  const deleted  = getDeleted();
+  const replaced = getReplaced();
+  const notes    = getNotes();
+
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    if (deleted.has(key)) {
+      el.classList.add('item-deleted');
+      const btn = document.getElementById('dbtn_' + key);
+      if (btn) { btn.textContent = '↩'; btn.title = 'Restore item'; btn.classList.add('ctrl-restore'); }
+    } else if (replaced.has(key)) {
+      el.classList.add('item-replaced');
+      if (!el.querySelector('.replaced-badge')) {
+        const badge = document.createElement('div');
+        badge.className = 'replaced-badge';
+        badge.textContent = '↩ Replaced by newer version';
+        el.insertBefore(badge, el.firstChild);
+      }
+    }
+    // Populate saved note text
+    const ta = document.getElementById('nt_' + key);
+    if (ta && notes[key]) ta.value = notes[key].text;
+    updateNoteBtnState(key, notes);
+  });
+  renderDayNotes();
+}
+
+// ── Day notes summary section ─────────────────────────────────────────────────
+function renderDayNotes() {
+  const sec = document.getElementById('day-notes-section');
+  if (!sec) return;
+  const notes = getNotes();
+  const firstKeyEl = document.querySelector('[data-key]');
+  if (!firstKeyEl) return;
+  const datePrefix = firstKeyEl.dataset.key.split('__')[0] + '__';
+  const myKeys = Object.keys(notes).filter(k => k.startsWith(datePrefix));
+  if (myKeys.length === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+
+  const FIELD_LABELS = { activities:'📍 Activity', food:'🍜 Food', shopping:'🛍 Shopping', hacks:'💡 Hack', facts:'📖 Fact' };
+  const items = myKeys.map(k => {
+    const parts    = k.split('__');
+    const field    = parts[1] || '';
+    const nameRaw  = (parts[2] || '').replace(/_/g, ' ');
+    const n        = notes[k];
+    const when     = n.at ? new Date(n.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    return '<div class="note-summary-item">' +
+      '<div class="note-summary-label">' + (FIELD_LABELS[field] || field) + ' · ' + nameRaw +
+        '<span class="note-edit-link" onclick="toggleNote(\'' + k + '\')">Edit</span>' +
+      '</div>' +
+      '<div class="note-summary-text">' + escHtml(n.text) + '</div>' +
+      (when ? '<div class="note-summary-meta">Saved ' + when + '</div>' : '') +
+      '</div>';
+  }).join('');
+  sec.innerHTML =
+    '<div class="section-title" style="color:var(--kyoto)">📓 My Notes for This Day</div>' + items;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
 <script src="data.js"></script>
 <script>
-(function() {
+(function () {
   const params  = new URLSearchParams(window.location.search);
   const dateStr = params.get('date');
   const day     = dateStr ? getDayByDate(dateStr) : null;
@@ -40,15 +280,16 @@
 
   if (!day) {
     document.title = 'Day not found | Japan 2026';
-    el.innerHTML = `<div style="text-align:center;padding:60px">
-      <div style="font-size:3rem">🗾</div><h2 style="margin:12px 0">Day not found</h2>
-      <a href="index.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#C8472A;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">← Back to Calendar</a>
-    </div>`;
+    el.innerHTML = '<div style="text-align:center;padding:60px">' +
+      '<div style="font-size:3rem">🗾</div>' +
+      '<h2 style="margin:12px 0">Day not found</h2>' +
+      '<a href="index.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#C8472A;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">← Back to Calendar</a>' +
+      '</div>';
     return;
   }
 
   const colors = REGION_COLORS[day.region];
-  document.title = `Day ${day.day}: ${day.theme} | Japan 2026`;
+  document.title = 'Day ' + day.day + ': ' + day.theme + ' | Japan 2026';
 
   const allDates = TRIP_DATA.days.map(d => d.date).sort();
   const idx      = allDates.indexOf(day.date);
@@ -59,152 +300,184 @@
     const found = getDayByDate(d);
     if (!found) return '';
     const o = new Date(d + 'T00:00:00');
-    return `${o.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · ${found.theme}`;
+    return o.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ' · ' + found.theme;
   }
 
   const niceDateStr = new Date(day.date + 'T00:00:00').toLocaleDateString('en-GB', {
     weekday:'long', day:'numeric', month:'long', year:'numeric'
   });
 
-  // ── Build activities with CHAINED MAPS ──────────────────────────────────
-  // First activity: origin = day.startLocation
-  // Each subsequent: origin = previous activity's .location
-  function buildActivities(activities, startLoc) {
-    return activities.map((act, i) => {
-      const origin = i === 0 ? startLoc : (activities[i-1].location || startLoc);
-      const dest   = act.location || null;
-      const mapHref  = dest ? mapsLink(origin, dest) : null;
-      const photoHref = photosLink(act.name);
+  // ── HTML builders for item controls ──────────────────────────────────────────
+  function itemCtrls(key) {
+    return '<div class="item-ctrls">' +
+      '<button class="ctrl-btn" id="nbtn_' + key + '" onclick="toggleNote(\'' + key + '\')" title="Add note">📝</button>' +
+      '<button class="ctrl-btn ctrl-del" id="dbtn_' + key + '" onclick="toggleDeleteItem(\'' + key + '\')" title="Remove item">🗑</button>' +
+      '</div>';
+  }
 
-      return `
-        <div class="activity-card">
-          <div class="activity-top">
-            <div>
-              <div class="activity-name">${act.name}</div>
-              ${act.time ? `<div class="activity-time">⏱ ${act.time}</div>` : ''}
-              ${act.ticket ? `<div class="ticket-badge">🎫 ${act.ticket}</div>` : ''}
-            </div>
-            ${act.cost ? `<div class="activity-cost">💴 ${act.cost}</div>` : ''}
-          </div>
-          ${act.notes ? `<div class="activity-notes">${act.notes}</div>` : ''}
-          <div class="activity-actions">
-            ${mapHref ? `
-              <a href="${mapHref}" target="_blank" class="btn-maps">🗺 Directions from ${i === 0 ? 'Hotel/Start' : 'Previous Stop'}</a>
-            ` : ''}
-            ${act.officialUrl ? `<a href="${act.officialUrl}" target="_blank" class="btn-official">🔗 Official Site</a>` : ''}
-            <a href="${photoHref}" target="_blank" class="btn-photos">📸 View Photos</a>
-          </div>
-          ${mapHref ? `<div class="maps-hint">💡 In Google Maps tap ⋮ → Route options → Prefer: Less walking</div>` : ''}
-        </div>`;
+  function notePanel(key) {
+    return '<div class="note-panel" id="np_' + key + '" style="display:none">' +
+      '<div class="note-voice-row">' +
+        '<textarea id="nt_' + key + '" placeholder="Add a note about this… or tap 🎙 to speak" rows="2"></textarea>' +
+        '<button id="vbtn_' + key + '" class="ctrl-btn" onclick="startVoice(\'' + key + '\')" title="Voice note" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button>' +
+      '</div>' +
+      '<div class="note-actions">' +
+        '<button class="ctrl-btn ctrl-save" onclick="saveNote(\'' + key + '\')">💾 Save</button>' +
+        '<button class="ctrl-btn" onclick="closeNote(\'' + key + '\')">✕ Cancel</button>' +
+      '</div>' +
+      '</div>';
+  }
+
+  // ── Activities ────────────────────────────────────────────────────────────────
+  function buildActivities(activities, startLoc) {
+    return activities.map(function(act, i) {
+      var key    = makeKey(day.date, 'activities', act.name);
+      var origin = i === 0 ? startLoc : (activities[i-1].location || startLoc);
+      var dest   = act.location || null;
+      var mapHref   = dest ? mapsLink(origin, dest) : null;
+      var photoHref = photosLink(act.name);
+      return '<div class="activity-card" data-key="' + key + '">' +
+        itemCtrls(key) +
+        '<div class="activity-top" style="padding-right:72px">' +
+          '<div>' +
+            '<div class="activity-name">' + act.name + '</div>' +
+            (act.time   ? '<div class="activity-time">⏱ ' + act.time + '</div>' : '') +
+            (act.ticket ? '<div class="ticket-badge">🎫 ' + act.ticket + '</div>' : '') +
+          '</div>' +
+          (act.cost ? '<div class="activity-cost">💴 ' + act.cost + '</div>' : '') +
+        '</div>' +
+        (act.notes ? '<div class="activity-notes">' + act.notes + '</div>' : '') +
+        '<div class="activity-actions">' +
+          (mapHref ? '<a href="' + mapHref + '" target="_blank" class="btn-maps">🗺 Directions from ' + (i === 0 ? 'Hotel/Start' : 'Previous Stop') + '</a>' : '') +
+          (act.officialUrl ? '<a href="' + act.officialUrl + '" target="_blank" class="btn-official">🔗 Official Site</a>' : '') +
+          '<a href="' + photoHref + '" target="_blank" class="btn-photos">📸 View Photos</a>' +
+        '</div>' +
+        (mapHref ? '<div class="maps-hint">💡 In Google Maps tap ⋮ → Route options → Prefer: Less walking</div>' : '') +
+        notePanel(key) +
+        '</div>';
     }).join('');
   }
 
-  // ── Food section ─────────────────────────────────────────────────────────
+  // ── Food ──────────────────────────────────────────────────────────────────────
   function buildFood(food) {
     if (!food || food.length === 0) return '';
-    const items = food.map(f => `
-      <div class="info-item">
-        <strong>${f.name}</strong>
-        <span>📍 ${f.where} · 💴 ${f.price}</span>
-        ${f.notes ? `<span style="display:block;margin-top:3px">${f.notes}</span>` : ''}
-      </div>`).join('');
-    return `
-      <div class="info-card">
-        <div class="info-card-title">🍜 What to Eat</div>
-        ${items}
-      </div>`;
+    var items = food.map(function(f) {
+      var key = makeKey(day.date, 'food', f.name);
+      return '<div class="info-item" data-key="' + key + '">' +
+        itemCtrls(key) +
+        '<div style="padding-right:72px">' +
+          '<strong>' + f.name + '</strong>' +
+          '<span>📍 ' + f.where + ' · 💴 ' + f.price + '</span>' +
+          (f.notes ? '<span style="display:block;margin-top:3px">' + f.notes + '</span>' : '') +
+        '</div>' +
+        notePanel(key) +
+        '</div>';
+    }).join('');
+    return '<div class="info-card"><div class="info-card-title">🍜 What to Eat</div>' + items + '</div>';
   }
 
-  // ── Shopping section ──────────────────────────────────────────────────────
+  // ── Shopping ──────────────────────────────────────────────────────────────────
   function buildShopping(shopping) {
     if (!shopping || shopping.length === 0) return '';
-    const items = shopping.map(s => `
-      <div class="info-item">
-        <strong>${s.name}</strong>
-        <span>📍 ${s.where} · 💴 ${s.price}</span>
-        ${s.notes ? `<span style="display:block;margin-top:3px">${s.notes}</span>` : ''}
-      </div>`).join('');
-    return `
-      <div class="info-card">
-        <div class="info-card-title">🛍 What to Buy / Shop</div>
-        ${items}
-      </div>`;
+    var items = shopping.map(function(s) {
+      var key = makeKey(day.date, 'shopping', s.name);
+      return '<div class="info-item" data-key="' + key + '">' +
+        itemCtrls(key) +
+        '<div style="padding-right:72px">' +
+          '<strong>' + s.name + '</strong>' +
+          '<span>📍 ' + s.where + ' · 💴 ' + s.price + '</span>' +
+          (s.notes ? '<span style="display:block;margin-top:3px">' + s.notes + '</span>' : '') +
+        '</div>' +
+        notePanel(key) +
+        '</div>';
+    }).join('');
+    return '<div class="info-card"><div class="info-card-title">🛍 What to Buy / Shop</div>' + items + '</div>';
   }
 
-  // ── Facts section ─────────────────────────────────────────────────────────
+  // ── Facts ─────────────────────────────────────────────────────────────────────
   function buildFacts(facts) {
     if (!facts || facts.length === 0) return '';
-    const items = facts.map(f => `<div class="info-item">📖 ${f}</div>`).join('');
-    return `
-      <div class="info-card">
-        <div class="info-card-title">🌟 Interesting Facts</div>
-        ${items}
-      </div>`;
+    var items = facts.map(function(f) {
+      var key = makeKey(day.date, 'facts', f);
+      return '<div class="info-item" data-key="' + key + '">' +
+        itemCtrls(key) +
+        '<div style="padding-right:72px">📖 ' + f + '</div>' +
+        notePanel(key) +
+        '</div>';
+    }).join('');
+    return '<div class="info-card"><div class="info-card-title">🌟 Interesting Facts</div>' + items + '</div>';
   }
 
-  // ── Hacks section ─────────────────────────────────────────────────────────
+  // ── Hacks ─────────────────────────────────────────────────────────────────────
   function buildHacks(hacks) {
     if (!hacks || hacks.length === 0) return '';
-    const items = hacks.map(h => `<div class="hack-item">${h}</div>`).join('');
-    return `
-      <div class="hacks-box">
-        <div class="section-title" style="color:var(--kyoto)">💡 Money + Experience Hacks</div>
-        ${items}
-      </div>`;
+    var items = hacks.map(function(h) {
+      var key = makeKey(day.date, 'hacks', h);
+      return '<div class="hack-item" data-key="' + key + '">' +
+        itemCtrls(key) +
+        '<div style="padding-right:72px">' + h + '</div>' +
+        notePanel(key) +
+        '</div>';
+    }).join('');
+    return '<div class="hacks-box"><div class="section-title" style="color:var(--kyoto)">💡 Money + Experience Hacks</div>' + items + '</div>';
   }
 
-  // ── Links strip ──────────────────────────────────────────────────────────
-  function buildLinks(day) {
-    const official = (day.officialLinks||[]).map(l =>
-      `<a href="${l.url}" target="_blank" class="btn-official">🔗 ${l.label}</a>`).join('');
-    const booking = (day.bookingLinks||[]).map(l =>
-      `<a href="${l.url}" target="_blank" class="btn-maps">🎟 ${l.label}</a>`).join('');
+  // ── Links strip ───────────────────────────────────────────────────────────────
+  function buildLinks(d) {
+    var official = (d.officialLinks || []).map(function(l) {
+      return '<a href="' + l.url + '" target="_blank" class="btn-official">🔗 ' + l.label + '</a>';
+    }).join('');
+    var booking = (d.bookingLinks || []).map(function(l) {
+      return '<a href="' + l.url + '" target="_blank" class="btn-maps">🎟 ' + l.label + '</a>';
+    }).join('');
     if (!official && !booking) return '';
-    return `<div class="links-row">${official}${booking}</div>`;
+    return '<div class="links-row">' + official + booking + '</div>';
   }
 
-  // ── Accommodation bar ────────────────────────────────────────────────────
-  const isTBC = day.accommodation && (day.accommodation.includes('TBC') || day.accommodation.includes('TO BE BOOKED'));
-  const accomHtml = day.accommodation ? `
-    <div class="accom-bar ${isTBC ? 'tbc' : 'confirmed'}">
-      🏨 ${day.accommodation}
-    </div>` : '';
+  // ── Accommodation bar ─────────────────────────────────────────────────────────
+  var isTBC = day.accommodation && (day.accommodation.includes('TBC') || day.accommodation.includes('TO BE BOOKED'));
+  var accomHtml = day.accommodation
+    ? '<div class="accom-bar ' + (isTBC ? 'tbc' : 'confirmed') + '">🏨 ' + day.accommodation + '</div>'
+    : '';
 
-  // ── Full page ────────────────────────────────────────────────────────────
-  const statusLabel = day.confirmed ? '✅ Confirmed' : '📋 Planned';
+  var statusLabel = day.confirmed ? '✅ Confirmed' : '📋 Planned';
 
-  el.innerHTML = `
-    <div class="day-header ${day.region}">
-      <div class="day-header-top">
-        <div class="day-num">${colors.label} · Day ${day.day} of 21</div>
-        <div class="day-status-badge">${statusLabel}</div>
-      </div>
-      <h1>${day.theme}</h1>
-      <div class="day-meta">${niceDateStr} · ${day.city}</div>
-    </div>
+  // ── Render ────────────────────────────────────────────────────────────────────
+  el.innerHTML =
+    '<div class="day-header ' + day.region + '">' +
+      '<div class="day-header-top">' +
+        '<div class="day-num">' + colors.label + ' · Day ' + day.day + ' of 21</div>' +
+        '<div class="day-status-badge">' + statusLabel + '</div>' +
+      '</div>' +
+      '<h1>' + day.theme + '</h1>' +
+      '<div class="day-meta">' + niceDateStr + ' · ' + day.city + '</div>' +
+    '</div>' +
 
-    ${accomHtml}
+    accomHtml +
 
-    <div class="section-title">📍 Activities &amp; Plans</div>
-    ${buildActivities(day.activities, day.startLocation || 'Aoto Station Katsushika Tokyo')}
+    '<div class="section-title">📍 Activities &amp; Plans</div>' +
+    buildActivities(day.activities, day.startLocation || 'Aoto Station Katsushika Tokyo') +
 
-    <div class="info-grid">
-      ${buildFood(day.food)}
-      ${buildShopping(day.shopping)}
-      ${buildFacts(day.facts)}
-    </div>
+    '<div class="info-grid">' +
+      buildFood(day.food) +
+      buildShopping(day.shopping) +
+      buildFacts(day.facts) +
+    '</div>' +
 
-    ${buildHacks(day.hacks)}
+    buildHacks(day.hacks) +
+    buildLinks(day) +
 
-    ${buildLinks(day)}
+    '<div id="day-notes-section" style="display:none"></div>' +
 
-    <div class="day-nav">
-      ${prevDate ? `<a href="day.html?date=${prevDate}" style="text-align:left">← ${labelForDate(prevDate)}</a>` : '<div></div>'}
-      <a href="index.html" class="home-link">📅</a>
-      ${nextDate ? `<a href="day.html?date=${nextDate}" style="text-align:right">${labelForDate(nextDate)} →</a>` : '<div></div>'}
-    </div>
-  `;
-})();
+    '<div class="day-nav">' +
+      (prevDate ? '<a href="day.html?date=' + prevDate + '" style="text-align:left">← ' + labelForDate(prevDate) + '</a>' : '<div></div>') +
+      '<a href="index.html" class="home-link">📅</a>' +
+      (nextDate ? '<a href="day.html?date=' + nextDate + '" style="text-align:right">' + labelForDate(nextDate) + ' →</a>' : '<div></div>') +
+    '</div>';
+
+  // Apply deleted / replaced / note states from localStorage
+  initAllStates();
+}());
 </script>
 
 </body>

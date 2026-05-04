@@ -198,6 +198,11 @@ const messages = []; // conversation history
 const PENDING_CHANGES = {}; // uid → changeData, avoids JSON-in-onclick quoting issues
 let thinking = false;
 
+// ── Item key (matches day.html's makeKey) ─────────────────────────────────────
+function makeItemKey(date, field, name) {
+  return date + '__' + field + '__' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if (!WORKER_URL || WORKER_URL === 'YOUR_WORKER_URL_HERE') {
@@ -337,7 +342,9 @@ function formatChangePreview(change) {
       .join('\n');
   }
 
-  return `📅 ${dateLabel}${dayLabel}\n📂 Field: ${change.field}\n➕ Add:\n${itemStr}`;
+  const replaceNote = (change.action === 'replace' && change.replaces)
+    ? `↩ Replaces: ${change.replaces}\n` : '';
+  return `${replaceNote}📅 ${dateLabel}${dayLabel}\n📂 Field: ${change.field}\n➕ Add:\n${itemStr}`;
 }
 
 // ── Apply the change via Cloudflare Worker ────────────────────────────────────
@@ -367,7 +374,18 @@ async function applyChange(uid) {
 
     const data = await res.json();
     if (data.success) {
-      status.textContent = `✅ Done! Commit ${data.commit}. Site rebuilds in ~60s.`;
+      // If replace action, mark old item as greyed-out in localStorage (day.html reads this)
+      if (change.action === 'replace' && change.replaces) {
+        try {
+          const rKey = makeItemKey(change.date, change.field, change.replaces);
+          const replaced = new Set(JSON.parse(localStorage.getItem('japan2026_replaced') || '[]'));
+          replaced.add(rKey);
+          localStorage.setItem('japan2026_replaced', JSON.stringify([...replaced]));
+        } catch(e) {}
+      }
+      const replaceNote = (change.action === 'replace' && change.replaces)
+        ? ` "${change.replaces}" is now greyed out.` : '';
+      status.textContent = `✅ Done! Commit ${data.commit}. Site rebuilds in ~60s.${replaceNote}`;
       status.className = 'apply-status success';
       btn.style.display = 'none';
       discard.style.display = 'none';

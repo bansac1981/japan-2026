@@ -34,7 +34,7 @@ TRANSPORT PASSES: JR Pass for shinkansen. IC card (Suica) for local transit.
 
 HOW TO RESPOND:
 1. For travel questions: give accurate, current web-sourced answers. Include opening hours, prices (in ¥), tips, and citations. Always mention vegetarian options where relevant.
-2. For itinerary change requests (add/update/remove an activity, restaurant, shopping tip, fact, or hack):
+2. For itinerary change requests (add, replace an activity, restaurant, shopping tip, fact, or hack):
    - Give your recommendation with reasoning and web-sourced details
    - Then append a JSON block in EXACTLY this format (no deviation):
 
@@ -43,10 +43,15 @@ HOW TO RESPOND:
   "type": "itinerary_change",
   "date": "YYYY-MM-DD",
   "field": "food|activities|shopping|hacks|facts",
-  "action": "add",
+  "action": "add|replace",
+  "replaces": "Exact name of existing item (only when action=replace)",
   "item": <see formats below>
 }
 \`\`\`
+
+   Use action="replace" when the user says "replace", "swap", or "instead of" an existing item.
+   The "replaces" value must be the exact name of the item being replaced.
+   Omit "replaces" entirely when action="add".
 
 ITEM FORMATS by field:
 • food / shopping: { "name": "...", "where": "...", "price": "¥...", "notes": "..." }
@@ -95,8 +100,8 @@ function toJsLiteral(val, indent = '        ') {
 
 // Inject a new item at the START of a named array within the day block for `date`
 function applyAddChange(content, date, field, item) {
-  // Find the date occurrence
-  const dateMarker = `date: '${date}'`;
+  // Find the date occurrence — data.js uses double-quoted strings
+  const dateMarker = `date: "${date}"`;
   const dateIdx = content.indexOf(dateMarker);
   if (dateIdx === -1) return null;
 
@@ -123,6 +128,8 @@ async function handleAsk(request, env) {
     return json({ error: 'messages array required' }, 400, env);
   }
 
+  console.log('GEMINI_KEY present:', !!env.GEMINI_KEY, 'length:', env.GEMINI_KEY?.length);
+
   // Convert OpenAI-style messages → Gemini format
   // (Gemini uses "model" instead of "assistant" for the AI role)
   const contents = messages.map(m => ({
@@ -131,14 +138,14 @@ async function handleAsk(request, env) {
   }));
 
   const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: TRIP_CONTEXT }] },
         contents,
-        tools: [{ google_search: {} }],   // Google Search grounding — live web results
+        tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.2,
           maxOutputTokens: 1800,
@@ -149,7 +156,8 @@ async function handleAsk(request, env) {
 
   if (!geminiRes.ok) {
     const err = await geminiRes.text();
-    return json({ error: `Gemini error: ${err}` }, 502, env);
+    console.error('Gemini API error', geminiRes.status, err); // visible in Cloudflare logs
+    return json({ error: `Gemini error ${geminiRes.status}: ${err}` }, 502, env);
   }
 
   const data = await geminiRes.json();
@@ -175,8 +183,10 @@ async function handleApply(request, env) {
   if (!date || !field || !action || item === undefined) {
     return json({ error: 'Missing required fields: date, field, action, item' }, 400, env);
   }
-  if (action !== 'add') {
-    return json({ error: 'Only action=add is supported currently' }, 400, env);
+  // "add", "update", and "replace" all insert the new item at the top of the array.
+  // For "replace", the frontend (day.html) greys out the old item via localStorage.
+  if (action !== 'add' && action !== 'update' && action !== 'replace') {
+    return json({ error: 'Only action=add, update, or replace is supported' }, 400, env);
   }
 
   // Fetch current data.js from GitHub
