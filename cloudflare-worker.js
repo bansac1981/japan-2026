@@ -32,10 +32,19 @@ Osaka — Dotonbori, Osaka Castle, Universal Studios Japan, Kuromon Market, Shin
 
 TRANSPORT PASSES: JR Pass for shinkansen. IC card (Suica) for local transit.
 
+LIVE ITINERARY: The full day-by-day itinerary is appended below (after "=== LIVE ITINERARY ==="). Read it carefully before responding. Use it to:
+• Understand what's already planned on each day before suggesting additions.
+• Avoid duplicating activities already in the itinerary.
+• When adding something, pick the best-fit day based on geography and existing schedule — e.g. don't suggest a Kyoto activity on a Tokyo day. Check if the day already has a full schedule before recommending a time slot.
+• When the user says "add something for Day X" or mentions a date, check that day's existing activities and slot the new item sensibly.
+• Always mention WHICH day you're placing something on and WHY it fits the existing schedule.
+
 HOW TO RESPOND:
 1. For travel questions: give accurate, current web-sourced answers. Include opening hours, prices (in ¥), tips, and citations. Always mention vegetarian options where relevant.
 2. For itinerary change requests (add, replace an activity, restaurant, shopping tip, fact, or hack):
-   - Give your recommendation with reasoning and web-sourced details
+   - Review the live itinerary to find the best-fit day/time
+   - Briefly explain why you chose that day (geography, existing gaps, logical sequence)
+   - Give your recommendation with web-sourced details
    - Then append a JSON block in EXACTLY this format (no deviation):
 
 \`\`\`json
@@ -123,12 +132,17 @@ async function handleAsk(request, env) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400, env); }
 
-  const { messages } = body;
+  const { messages, itinerary } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return json({ error: 'messages array required' }, 400, env);
   }
 
   console.log('GEMINI_KEY present:', !!env.GEMINI_KEY, 'length:', env.GEMINI_KEY?.length);
+
+  // Build system prompt: base context + live itinerary (if provided by frontend)
+  const systemText = itinerary
+    ? TRIP_CONTEXT + '\n\n' + itinerary
+    : TRIP_CONTEXT;
 
   // Convert OpenAI-style messages → Gemini format
   // (Gemini uses "model" instead of "assistant" for the AI role)
@@ -143,7 +157,7 @@ async function handleAsk(request, env) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: TRIP_CONTEXT }] },
+        systemInstruction: { parts: [{ text: systemText }] },
         contents,
         tools: [{ google_search: {} }],
         generationConfig: {
@@ -258,9 +272,4 @@ export default {
 
     const url = new URL(request.url);
 
-    if (url.pathname === '/ask'  && request.method === 'POST') return handleAsk(request, env);
-    if (url.pathname === '/apply' && request.method === 'POST') return handleApply(request, env);
-
-    return new Response('Japan Trip Worker — endpoints: POST /ask, POST /apply', { status: 200 });
-  },
-};
+    if (url.pathname === '/ask'  && request

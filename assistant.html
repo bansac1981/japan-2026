@@ -412,6 +412,34 @@ function discardChange(uid) {
   if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
 }
 
+// ── Itinerary serialiser — compact summary sent with every request ────────────
+function buildItinerarySummary() {
+  if (typeof TRIP_DATA === 'undefined' || !TRIP_DATA.days) return '';
+  const lines = ['=== LIVE ITINERARY (full day-by-day) ==='];
+  TRIP_DATA.days.forEach(d => {
+    lines.push(`\nDay ${d.day} | ${d.date} | ${d.dayOfWeek} | ${d.city} | "${d.theme}"`);
+    if (d.accommodation) lines.push(`  Stay: ${d.accommodation}`);
+    if (d.activities && d.activities.length) {
+      const acts = d.activities.map(a => {
+        let s = a.name;
+        if (a.time) s += ` [${a.time}]`;
+        if (a.cost && a.cost !== 'Free') s += ` (${a.cost})`;
+        if (a.ticket && a.ticket !== 'Not yet needed') s += ` 🎫${a.ticket}`;
+        return s;
+      }).join(' → ');
+      lines.push(`  Activities: ${acts}`);
+    }
+    if (d.food && d.food.length) {
+      lines.push(`  Food options: ${d.food.map(f => f.name + ' @ ' + f.where + ' ' + f.price).join(', ')}`);
+    }
+    if (d.shopping && d.shopping.length) {
+      lines.push(`  Shopping: ${d.shopping.map(s => s.name).join(', ')}`);
+    }
+  });
+  lines.push('\n=== END ITINERARY ===');
+  return lines.join('\n');
+}
+
 // ── Main send function ────────────────────────────────────────────────────────
 async function sendMessage() {
   if (thinking) return;
@@ -437,7 +465,7 @@ async function sendMessage() {
     const res = await fetch(`${WORKER_URL}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, itinerary: buildItinerarySummary() }),
     });
 
     if (!res.ok) {
@@ -471,7 +499,6 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
 function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
 
 function mdToHtml(md) {

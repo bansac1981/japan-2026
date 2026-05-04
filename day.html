@@ -6,7 +6,134 @@
   <title>Loading... | Japan 2026</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* ── Item controls (delete + note) ───────────────────────────────────────── */
+    /* ── Calendar view ─────────────────────────────────────────────────────────── */
+    .cal-section { margin-bottom: 24px; }
+    .cal-wrap {
+      border-radius: var(--radius); border: 1.5px solid var(--border);
+      background: var(--card-bg); overflow: hidden; margin-top: 12px;
+    }
+    .cal-scroll { overflow-y: auto; max-height: 70vh; }
+    .cal-inner  { display: flex; position: relative; }
+
+    /* Time labels */
+    .cal-times {
+      width: 50px; flex-shrink: 0;
+      border-right: 1.5px solid var(--border); position: relative;
+    }
+    .cal-hour-label {
+      height: 60px; display: flex; align-items: flex-start;
+      justify-content: flex-end; padding: 4px 8px 0 0;
+      font-size: 0.68rem; color: var(--muted);
+      font-variant-numeric: tabular-nums; box-sizing: border-box;
+    }
+
+    /* Event column */
+    .cal-events-col { flex: 1; position: relative; }
+    .cal-hour-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 1px solid var(--border); pointer-events: none;
+    }
+    .cal-half-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 1px dashed rgba(0,0,0,0.07); pointer-events: none;
+    }
+    .cal-now-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 2px solid #EF4444; pointer-events: none; z-index: 5;
+    }
+    .cal-now-dot {
+      position: absolute; left: -5px; top: -5px;
+      width: 9px; height: 9px; border-radius: 50%; background: #EF4444;
+    }
+    .cal-now-time {
+      position: absolute; right: 6px; top: -9px;
+      font-size: 0.64rem; color: #EF4444; font-weight: 700;
+    }
+
+    /* Event blocks */
+    .cal-event {
+      position: absolute; border-radius: 7px; overflow: visible;
+      cursor: pointer; box-sizing: border-box;
+      transition: box-shadow 0.15s; border: 1.5px solid rgba(255,255,255,0.25);
+    }
+    .cal-event:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.22); z-index: 20; }
+    .cal-event.expanded { z-index: 30; }
+
+    .cal-event-header { padding: 5px 8px; overflow: hidden; }
+    .cal-event-name {
+      font-weight: 700; font-size: 0.77rem; line-height: 1.25; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cal-event-time {
+      font-size: 0.66rem; color: rgba(255,255,255,0.88); margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cal-event.tiny .cal-event-time { display: none; }
+    .cal-event.tiny .cal-event-name { font-size: 0.68rem; }
+
+    /* Expanded detail popover */
+    .cal-event-detail {
+      display: none; position: absolute; left: 0; top: 100%;
+      min-width: 240px; max-width: 340px; width: max-content;
+      background: var(--card-bg); color: var(--text);
+      border-radius: 0 10px 10px 10px;
+      border: 1.5px solid var(--border);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+      padding: 10px 12px; font-size: 0.81rem; z-index: 40;
+    }
+    .cal-event.expanded .cal-event-detail { display: block; }
+    .cal-event-detail-row { margin-bottom: 5px; line-height: 1.5; }
+    .cal-event-detail-notes { color: var(--muted); font-size: 0.77rem; margin-bottom: 6px; line-height: 1.45; }
+    .cal-event-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .ceb {
+      padding: 4px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 500;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+      cursor: pointer; font-family: inherit; text-decoration: none;
+      white-space: nowrap; display: inline-block;
+    }
+    .ceb:hover { background: var(--border); }
+    .ceb.del:hover { background: #FEE2E2; border-color: #FCA5A5; color: #DC2626; }
+    .ceb.restore { background: #F0FDF4; border-color: #86EFAC; color: #166534; }
+    .ceb.has-note { background: #FEFCE8; border-color: #F59E0B; }
+
+    /* Deleted / replaced on calendar */
+    .cal-event.item-deleted  { opacity: 0.22; filter: grayscale(80%); }
+    .cal-event.item-replaced::after {
+      content: 'REPLACED'; position: absolute; top: 3px; right: 4px;
+      font-size: 0.56rem; font-weight: 900; color: rgba(255,255,255,0.75);
+      letter-spacing: 0.5px;
+    }
+    .cal-event.item-replaced { opacity: 0.35; }
+
+    /* Unscheduled activities */
+    .unscheduled-wrap { margin-top: 12px; }
+    .unscheduled-label {
+      font-size: 0.74rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+
+    /* Note overlay (fixed, centered) */
+    .cal-note-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.12);
+      z-index: 500; display: none;
+    }
+    .cal-note-overlay {
+      position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+      width: min(360px, 94vw); z-index: 501;
+      background: #FEFCE8; border: 2px solid #F59E0B; border-radius: 14px;
+      padding: 14px 16px; box-shadow: 0 8px 36px rgba(0,0,0,0.22);
+      display: none;
+    }
+    .cal-note-title { font-weight: 700; font-size: 0.88rem; color: #92400E; margin-bottom: 8px; }
+    .cal-note-overlay textarea {
+      width: 100%; box-sizing: border-box; border: 1.5px solid #FDE68A;
+      border-radius: 8px; padding: 9px 11px; font-size: 0.84rem;
+      font-family: inherit; resize: vertical; min-height: 80px; background: #fff;
+    }
+    .cal-note-overlay textarea:focus { outline: none; border-color: #F59E0B; }
+    .cal-note-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+
+    /* ── Card items (food / shopping / hacks / facts / unscheduled acts) ──────── */
     .activity-card { position: relative; }
     .info-item     { position: relative; }
     .hack-item     { position: relative; }
@@ -17,8 +144,8 @@
       opacity: 0; transition: opacity 0.15s;
     }
     .activity-card:hover .item-ctrls,
-    .info-item:hover     .item-ctrls,
-    .hack-item:hover     .item-ctrls { opacity: 1; }
+    .info-item:hover .item-ctrls,
+    .hack-item:hover .item-ctrls { opacity: 1; }
     @media (pointer: coarse) { .item-ctrls { opacity: 0.75; } }
 
     .ctrl-btn {
@@ -33,12 +160,9 @@
     .ctrl-save       { background: #FEFCE8; border-color: #FDE68A; }
     .ctrl-save:hover { background: #FEF3C7; }
 
-    /* ── Deleted state ───────────────────────────────────────────────────────── */
-    .item-deleted { opacity: 0.22; filter: grayscale(70%); }
-    .item-deleted .note-panel { display: none !important; }
-    .item-deleted .item-ctrls { opacity: 1 !important; }
-
-    /* ── Replaced state ──────────────────────────────────────────────────────── */
+    .item-deleted  { opacity: 0.22; filter: grayscale(70%); }
+    .item-deleted .note-panel  { display: none !important; }
+    .item-deleted .item-ctrls  { opacity: 1 !important; }
     .item-replaced { opacity: 0.30; background: #f5f5f5 !important; border-color: #e0e0e0 !important; }
     .item-replaced .item-ctrls { opacity: 1 !important; }
     .replaced-badge {
@@ -46,8 +170,6 @@
       background: #e5e7eb; color: #6b7280; padding: 2px 9px;
       border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.3px;
     }
-
-    /* ── Note panel ──────────────────────────────────────────────────────────── */
     .note-panel {
       margin-top: 8px; padding: 10px 12px;
       background: #FEFCE8; border: 1.5px solid #FDE68A; border-radius: 8px;
@@ -61,7 +183,7 @@
     .note-voice-row textarea:focus { outline: none; border-color: #F59E0B; box-shadow: 0 0 0 2px #FEF3C7; }
     .note-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 
-    /* ── Day notes summary ───────────────────────────────────────────────────── */
+    /* Day notes summary */
     #day-notes-section { margin-top: 20px; }
     .note-summary-item {
       padding: 10px 14px; border: 1.5px solid #FDE68A;
@@ -71,9 +193,9 @@
       font-size: 0.72rem; font-weight: 700; color: #92400E;
       text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;
     }
-    .note-summary-text { font-size: 0.85rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
-    .note-summary-meta { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
-    .note-edit-link { font-size: 0.72rem; color: var(--transit); cursor: pointer; margin-left: 8px; }
+    .note-summary-text  { font-size: 0.85rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    .note-summary-meta  { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+    .note-edit-link     { font-size: 0.72rem; color: var(--transit); cursor: pointer; margin-left: 8px; }
     .note-edit-link:hover { text-decoration: underline; }
   </style>
 </head>
@@ -97,388 +219,621 @@
   <p style="text-align:center;padding:60px;color:#999">Loading…</p>
 </div>
 
-<footer class="site-footer">
-  Japan Family Vacation 2026 · Bansal–Jain Family · 🗾
-</footer>
+<!-- Note overlay (shared across all calendar events) -->
+<div class="cal-note-backdrop" id="cal-note-backdrop" onclick="closeCalNote()"></div>
+<div class="cal-note-overlay" id="cal-note-overlay">
+  <div class="cal-note-title" id="cal-note-title">📝 Add Note</div>
+  <textarea id="cal-note-ta" placeholder="Type your note… or tap 🎙 below"></textarea>
+  <div class="cal-note-actions">
+    <button class="ctrl-btn" id="cal-voice-btn" onclick="startCalVoice()">🎙 Voice</button>
+    <button class="ctrl-btn" onclick="closeCalNote()">✕ Cancel</button>
+    <button class="ctrl-btn ctrl-save" onclick="saveCalNote()">💾 Save</button>
+  </div>
+</div>
 
-<!-- ── Global helpers (must be global because called from onclick="...") ──────── -->
+<footer class="site-footer">Japan Family Vacation 2026 · Bansal–Jain Family · 🗾</footer>
+
+<!-- ── Global helpers ──────────────────────────────────────────────────────────── -->
 <script>
+const GRID_START = 5, GRID_END = 23, PX = 60; // hours, px-per-hour
+
 // ── localStorage helpers ──────────────────────────────────────────────────────
-function lsGet(k, def) { try { const v = JSON.parse(localStorage.getItem(k)); return v != null ? v : def; } catch { return def; } }
-function lsSet(k, v)   { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-function getDeleted()  { return new Set(lsGet('japan2026_deleted',  [])); }
-function getReplaced() { return new Set(lsGet('japan2026_replaced', [])); }
-function getNotes()    { return lsGet('japan2026_notes', {}); }
+function lsGet(k,def){try{const v=JSON.parse(localStorage.getItem(k));return v!=null?v:def;}catch{return def;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function getDeleted(){return new Set(lsGet('japan2026_deleted',[]));}
+function getReplaced(){return new Set(lsGet('japan2026_replaced',[]));}
+function getNotes(){return lsGet('japan2026_notes',{});}
 
 // ── Item key ──────────────────────────────────────────────────────────────────
-function makeKey(date, field, name) {
-  return date + '__' + field + '__' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40);
+function makeKey(date,field,name){
+  return date+'__'+field+'__'+String(name).toLowerCase().replace(/[^a-z0-9]+/g,'_').slice(0,40);
 }
 
-// ── Delete / Restore ──────────────────────────────────────────────────────────
-function toggleDeleteItem(key) {
-  const deleted = getDeleted();
-  const el  = document.querySelector('[data-key="' + key + '"]');
-  const btn = document.getElementById('dbtn_' + key);
+// ── HTML escape ───────────────────────────────────────────────────────────────
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-  if (deleted.has(key)) {
-    // Restore
-    deleted.delete(key); lsSet('japan2026_deleted', [...deleted]);
-    if (el)  { el.classList.remove('item-deleted'); }
-    if (btn) { btn.textContent = '🗑'; btn.title = 'Remove item'; btn.classList.remove('ctrl-restore'); }
+// ── Time parser ───────────────────────────────────────────────────────────────
+function parseTime(t) {
+  if (!t) return null;
+  var s = t.toLowerCase().trim();
+  if (/all[\s-]?day/.test(s) || /full[\s-]?day/.test(s)) return {start:GRID_START,end:GRID_END,approx:true};
+  if (s==='morning'||/^morning/.test(s))   return {start:8,end:12,approx:true};
+  if (s==='afternoon'||/^afternoon/.test(s)) return {start:13,end:17,approx:true};
+  if (s==='evening'||/^evening/.test(s))   return {start:18,end:21,approx:true};
+
+  function toH(h,m){return parseInt(h)+(parseInt(m||0)/60);}
+
+  // Range HH:MM – HH:MM
+  var r=s.match(/(\d{1,2}):(\d{2})\s*[–\-→]+\s*(\d{1,2}):(\d{2})/);
+  if(r){var st=toH(r[1],r[2]),en=toH(r[3],r[4]);if(en<st)en=GRID_END;return{start:Math.max(st,GRID_START),end:Math.min(en,GRID_END)};}
+
+  // Range HH – HH (no minutes)
+  var r2=s.match(/(?:^|[\s(])(\d{1,2})\s*[–\-→]+\s*(\d{1,2})(?!\d)/);
+  if(r2){var st2=parseInt(r2[1]),en2=parseInt(r2[2]);if(en2<st2)en2=GRID_END;if(st2>=1&&st2<=23)return{start:Math.max(st2,GRID_START),end:Math.min(en2,GRID_END)};}
+
+  // Single HH:MM
+  var r3=s.match(/(\d{1,2}):(\d{2})/);
+  if(r3){var st3=toH(r3[1],r3[2]);if(st3>=GRID_START&&st3<GRID_END)return{start:st3,end:Math.min(st3+2,GRID_END),approx:true};}
+
+  // Single hour digit  var r4=s.match(/(?:^|[^:\d])(\d{1,2})(?:$|[^:\d])/);
+  if(r4){var st4=parseInt(r4[1]);if(st4>=GRID_START&&st4<GRID_END)return{start:st4,end:Math.min(st4+2,GRID_END),approx:true};}
+
+  return null;
+}
+
+// ── Lane assignment for overlapping events ────────────────────────────────────
+function assignLanes(evs) {
+  evs.forEach(function(ev){ev.lane=0;});
+  for(var i=0;i<evs.length;i++){
+    var ev=evs[i],occ=new Set();
+    for(var j=0;j<i;j++){var o=evs[j];if(ev.t.start<o.t.end&&ev.t.end>o.t.start)occ.add(o.lane);}
+    var lane=0;while(occ.has(lane))lane++;
+    ev.lane=lane;
+  }
+  evs.forEach(function(ev){
+    var mx=ev.lane;
+    evs.forEach(function(o){if(o!==ev&&ev.t.start<o.t.end&&ev.t.end>o.t.start)mx=Math.max(mx,o.lane);});
+    ev.numLanes=mx+1;
+  });
+}
+
+// ── Calendar event toggle (expand / collapse) ────────────────────────────────
+function toggleCalEvent(id) {
+  var el=document.getElementById(id);
+  if(!el)return;
+  var wasOpen=el.classList.contains('expanded');
+  // Close all
+  document.querySelectorAll('.cal-event.expanded').forEach(function(e){e.classList.remove('expanded');});
+  if(!wasOpen)el.classList.add('expanded');
+}
+
+// ── Note overlay for calendar events ─────────────────────────────────────────
+var _calNoteKey=null;
+function openCalNote(key,name){
+  _calNoteKey=key;
+  document.getElementById('cal-note-title').textContent='📝 '+name;
+  var ta=document.getElementById('cal-note-ta');
+  var notes=getNotes();
+  ta.value=notes[key]?notes[key].text:'';
+  document.getElementById('cal-note-backdrop').style.display='block';
+  document.getElementById('cal-note-overlay').style.display='block';
+  ta.focus();
+  // Close any expanded cal event
+  document.querySelectorAll('.cal-event.expanded').forEach(function(e){e.classList.remove('expanded');});
+}
+function closeCalNote(){
+  document.getElementById('cal-note-backdrop').style.display='none';
+  document.getElementById('cal-note-overlay').style.display='none';
+  _calNoteKey=null;
+}
+function saveCalNote(){
+  if(!_calNoteKey)return;
+  var text=document.getElementById('cal-note-ta').value.trim();
+  var notes=getNotes();
+  if(text)notes[_calNoteKey]={text:text,at:new Date().toISOString()};
+  else delete notes[_calNoteKey];
+  lsSet('japan2026_notes',notes);
+  // Update button state
+  updateCalNoteBtnState(_calNoteKey,notes);
+  closeCalNote();
+  renderDayNotes();
+  // Also update card note btn if present
+  updateNoteBtnState(_calNoteKey,notes);
+}
+function updateCalNoteBtnState(key,notes){
+  var btn=document.getElementById('calnbtn_'+key);
+  if(!btn)return;
+  var has=!!(notes||getNotes())[key];
+  btn.textContent=has?'📝✓ Note':'📝 Note';
+  btn.className='ceb'+(has?' has-note':'');
+}
+
+// ── Voice input for cal note overlay ─────────────────────────────────────────
+var _calVoiceRec=null;
+function startCalVoice(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Voice input works in Chrome or Edge.');return;}
+  var btn=document.getElementById('cal-voice-btn');
+  if(_calVoiceRec){_calVoiceRec.stop();_calVoiceRec=null;if(btn)btn.textContent='🎙 Voice';return;}
+  _calVoiceRec=new SR();
+  _calVoiceRec.lang='en-US';_calVoiceRec.continuous=false;_calVoiceRec.interimResults=false;
+  if(btn)btn.textContent='⏹ Stop';
+  _calVoiceRec.onresult=function(e){
+    var ta=document.getElementById('cal-note-ta');
+    if(ta)ta.value=(ta.value?ta.value+' ':'')+e.results[0][0].transcript;
+  };
+  _calVoiceRec.onend=_calVoiceRec.onerror=function(){if(btn)btn.textContent='🎙 Voice';_calVoiceRec=null;};
+  _calVoiceRec.start();
+}
+
+// ── Delete / restore for calendar events ─────────────────────────────────────
+function calDeleteItem(key,name){
+  var deleted=getDeleted();
+  var el=document.getElementById('cale_'+key);
+  var btn=document.getElementById('caldbtn_'+key);
+  if(deleted.has(key)){
+    deleted.delete(key);lsSet('japan2026_deleted',[...deleted]);
+    if(el)el.classList.remove('item-deleted');
+    if(btn){btn.textContent='🗑 Hide';btn.className='ceb del';}
   } else {
-    // Delete with confirmation
-    const nameEl = el && (el.querySelector('.activity-name') || el.querySelector('strong'));
-    const name   = nameEl ? nameEl.textContent.trim() : 'this item';
-    if (!confirm('Hide "' + name + '" from view?\n\nStored in this browser only — tap 🗑 button again to restore.')) return;
-    deleted.add(key); lsSet('japan2026_deleted', [...deleted]);
-    if (el)  { el.classList.add('item-deleted'); }
-    if (btn) { btn.textContent = '↩'; btn.title = 'Restore item'; btn.classList.add('ctrl-restore'); }
+    if(!confirm('Hide "'+name+'" from the timeline?\n\nClick the block again to restore.'))return;
+    deleted.add(key);lsSet('japan2026_deleted',[...deleted]);
+    if(el)el.classList.add('item-deleted');
+    if(btn){btn.textContent='↩ Restore';btn.className='ceb restore';}
+  }
+  if(el)el.classList.remove('expanded');
+}
+
+// ── Delete / restore for card items (food, shopping etc) ─────────────────────
+function toggleDeleteItem(key){
+  var deleted=getDeleted();
+  var el=document.querySelector('[data-key="'+key+'"]');
+  var btn=document.getElementById('dbtn_'+key);
+  if(deleted.has(key)){
+    deleted.delete(key);lsSet('japan2026_deleted',[...deleted]);
+    if(el)el.classList.remove('item-deleted');
+    if(btn){btn.textContent='🗑';btn.title='Remove item';btn.classList.remove('ctrl-restore');}
+  } else {
+    var nameEl=el&&(el.querySelector('.activity-name')||el.querySelector('strong'));
+    var n=nameEl?nameEl.textContent.trim():'this item';
+    if(!confirm('Hide "'+n+'" from view?\n\nTap the button again to restore.'))return;
+    deleted.add(key);lsSet('japan2026_deleted',[...deleted]);
+    if(el)el.classList.add('item-deleted');
+    if(btn){btn.textContent='↩';btn.title='Restore item';btn.classList.add('ctrl-restore');}
   }
 }
 
-// ── Notes ─────────────────────────────────────────────────────────────────────
-function toggleNote(key) {
-  const panel = document.getElementById('np_' + key);
-  if (!panel) return;
-  const isOpen = panel.style.display !== 'none';
-  // Close all open panels first
-  document.querySelectorAll('.note-panel').forEach(p => p.style.display = 'none');
-  if (!isOpen) {
-    panel.style.display = 'block';
-    const ta = document.getElementById('nt_' + key);
-    if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
-  }
+// ── Note panel for card items ─────────────────────────────────────────────────
+function toggleNote(key){
+  var panel=document.getElementById('np_'+key);
+  if(!panel)return;
+  var isOpen=panel.style.display!=='none';
+  document.querySelectorAll('.note-panel').forEach(function(p){p.style.display='none';});
+  if(!isOpen){panel.style.display='block';var ta=document.getElementById('nt_'+key);if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}}
 }
-
-function closeNote(key) {
-  const p = document.getElementById('np_' + key);
-  if (p) p.style.display = 'none';
-}
-
-function saveNote(key) {
-  const ta   = document.getElementById('nt_' + key);
-  const text = ta ? ta.value.trim() : '';
-  const notes = getNotes();
-  if (text) notes[key] = { text, at: new Date().toISOString() };
-  else       delete notes[key];
-  lsSet('japan2026_notes', notes);
+function closeNote(key){var p=document.getElementById('np_'+key);if(p)p.style.display='none';}
+function saveNote(key){
+  var ta=document.getElementById('nt_'+key);
+  var text=ta?ta.value.trim():'';
+  var notes=getNotes();
+  if(text)notes[key]={text:text,at:new Date().toISOString()};
+  else delete notes[key];
+  lsSet('japan2026_notes',notes);
   closeNote(key);
-  updateNoteBtnState(key, notes);
+  updateNoteBtnState(key,notes);
   renderDayNotes();
 }
-
-function updateNoteBtnState(key, notes) {
-  if (!notes) notes = getNotes();
-  const btn = document.getElementById('nbtn_' + key);
-  if (!btn) return;
-  const has = !!notes[key];
-  btn.textContent   = has ? '📝✓' : '📝';
-  btn.title         = has ? 'Edit note' : 'Add note';
-  btn.style.background   = has ? '#FEFCE8' : '';
-  btn.style.borderColor  = has ? '#F59E0B' : '';
-  btn.style.fontWeight   = has ? '700' : '';
+function updateNoteBtnState(key,notes){
+  if(!notes)notes=getNotes();
+  var btn=document.getElementById('nbtn_'+key);
+  if(!btn)return;
+  var has=!!notes[key];
+  btn.textContent=has?'📝✓':'📝';btn.title=has?'Edit note':'Add note';
+  btn.style.background=has?'#FEFCE8':'';
+  btn.style.borderColor=has?'#F59E0B':'';
+  btn.style.fontWeight=has?'700':'';
 }
 
-// ── Voice input ───────────────────────────────────────────────────────────────
-let _voiceRec = null;
-function startVoice(key) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Voice input works in Chrome or Edge. Try typing instead.'); return; }
-  const btn = document.getElementById('vbtn_' + key);
-  if (_voiceRec) {
-    _voiceRec.stop(); _voiceRec = null;
-    if (btn) { btn.textContent = '🎙'; btn.style.color = ''; }
-    return;
-  }
-  _voiceRec = new SR();
-  _voiceRec.lang = 'en-US'; _voiceRec.continuous = false; _voiceRec.interimResults = false;
-  if (btn) { btn.textContent = '⏹'; btn.style.color = '#DC2626'; }
-  _voiceRec.onresult = e => {
-    const ta = document.getElementById('nt_' + key);
-    if (ta) ta.value = (ta.value ? ta.value + ' ' : '') + e.results[0][0].transcript;
-  };
-  _voiceRec.onend = _voiceRec.onerror = () => {
-    if (btn) { btn.textContent = '🎙'; btn.style.color = ''; }
-    _voiceRec = null;
-  };
+// ── Voice for card items ──────────────────────────────────────────────────────
+var _voiceRec=null;
+function startVoice(key){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Voice input works in Chrome or Edge. Try typing instead.');return;}
+  var btn=document.getElementById('vbtn_'+key);
+  if(_voiceRec){_voiceRec.stop();_voiceRec=null;if(btn){btn.textContent='🎙';btn.style.color='';}return;}
+  _voiceRec=new SR();
+  _voiceRec.lang='en-US';_voiceRec.continuous=false;_voiceRec.interimResults=false;
+  if(btn){btn.textContent='⏹';btn.style.color='#DC2626';}
+  _voiceRec.onresult=function(e){var ta=document.getElementById('nt_'+key);if(ta)ta.value=(ta.value?ta.value+' ':'')+e.results[0][0].transcript;};
+  _voiceRec.onend=_voiceRec.onerror=function(){if(btn){btn.textContent='🎙';btn.style.color='';}  _voiceRec=null;};
   _voiceRec.start();
 }
 
-// ── Apply localStorage states after page render ───────────────────────────────
-function initAllStates() {
-  const deleted  = getDeleted();
-  const replaced = getReplaced();
-  const notes    = getNotes();
-
-  document.querySelectorAll('[data-key]').forEach(el => {
-    const key = el.dataset.key;
-    if (deleted.has(key)) {
+// ── Apply all localStorage states ─────────────────────────────────────────────
+function initAllStates(){
+  var deleted=getDeleted(),replaced=getReplaced(),notes=getNotes();
+  // Calendar events
+  document.querySelectorAll('.cal-event[data-key]').forEach(function(el){
+    var key=el.dataset.key;
+    if(deleted.has(key)){el.classList.add('item-deleted');var b=document.getElementById('caldbtn_'+key);if(b){b.textContent='↩ Restore';b.className='ceb restore';}}
+    else if(replaced.has(key)){el.classList.add('item-replaced');}
+    updateCalNoteBtnState(key,notes);
+  });
+  // Card items
+  document.querySelectorAll('[data-key]:not(.cal-event)').forEach(function(el){
+    var key=el.dataset.key;
+    if(deleted.has(key)){
       el.classList.add('item-deleted');
-      const btn = document.getElementById('dbtn_' + key);
-      if (btn) { btn.textContent = '↩'; btn.title = 'Restore item'; btn.classList.add('ctrl-restore'); }
-    } else if (replaced.has(key)) {
+      var btn=document.getElementById('dbtn_'+key);
+      if(btn){btn.textContent='↩';btn.title='Restore item';btn.classList.add('ctrl-restore');}
+    } else if(replaced.has(key)){
       el.classList.add('item-replaced');
-      if (!el.querySelector('.replaced-badge')) {
-        const badge = document.createElement('div');
-        badge.className = 'replaced-badge';
-        badge.textContent = '↩ Replaced by newer version';
-        el.insertBefore(badge, el.firstChild);
+      if(!el.querySelector('.replaced-badge')){
+        var badge=document.createElement('div');badge.className='replaced-badge';
+        badge.textContent='↩ Replaced by newer version';el.insertBefore(badge,el.firstChild);
       }
     }
-    // Populate saved note text
-    const ta = document.getElementById('nt_' + key);
-    if (ta && notes[key]) ta.value = notes[key].text;
-    updateNoteBtnState(key, notes);
+    var ta=document.getElementById('nt_'+key);if(ta&&notes[key])ta.value=notes[key].text;
+    updateNoteBtnState(key,notes);
   });
   renderDayNotes();
 }
 
-// ── Day notes summary section ─────────────────────────────────────────────────
-function renderDayNotes() {
-  const sec = document.getElementById('day-notes-section');
-  if (!sec) return;
-  const notes = getNotes();
-  const firstKeyEl = document.querySelector('[data-key]');
-  if (!firstKeyEl) return;
-  const datePrefix = firstKeyEl.dataset.key.split('__')[0] + '__';
-  const myKeys = Object.keys(notes).filter(k => k.startsWith(datePrefix));
-  if (myKeys.length === 0) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-
-  const FIELD_LABELS = { activities:'📍 Activity', food:'🍜 Food', shopping:'🛍 Shopping', hacks:'💡 Hack', facts:'📖 Fact' };
-  const items = myKeys.map(k => {
-    const parts    = k.split('__');
-    const field    = parts[1] || '';
-    const nameRaw  = (parts[2] || '').replace(/_/g, ' ');
-    const n        = notes[k];
-    const when     = n.at ? new Date(n.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
-    return '<div class="note-summary-item">' +
-      '<div class="note-summary-label">' + (FIELD_LABELS[field] || field) + ' · ' + nameRaw +
-        '<span class="note-edit-link" onclick="toggleNote(\'' + k + '\')">Edit</span>' +
-      '</div>' +
-      '<div class="note-summary-text">' + escHtml(n.text) + '</div>' +
-      (when ? '<div class="note-summary-meta">Saved ' + when + '</div>' : '') +
+// ── Day notes summary ─────────────────────────────────────────────────────────
+function renderDayNotes(){
+  var sec=document.getElementById('day-notes-section');
+  if(!sec)return;
+  var notes=getNotes();
+  var firstKeyEl=document.querySelector('[data-key]');
+  if(!firstKeyEl)return;
+  var datePrefix=firstKeyEl.dataset.key.split('__')[0]+'__';
+  var myKeys=Object.keys(notes).filter(function(k){return k.startsWith(datePrefix);});
+  if(myKeys.length===0){sec.style.display='none';return;}
+  sec.style.display='block';
+  var FL={activities:'📍 Activity',food:'🍜 Food',shopping:'🛍 Shopping',hacks:'💡 Hack',facts:'📖 Fact'};
+  var items=myKeys.map(function(k){
+    var parts=k.split('__'),field=parts[1]||'',nameRaw=(parts[2]||'').replace(/_/g,' ');
+    var n=notes[k],when=n.at?new Date(n.at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    return '<div class="note-summary-item">'+
+      '<div class="note-summary-label">'+(FL[field]||field)+' · '+nameRaw+
+        '<span class="note-edit-link" onclick="openCalNote(\''+k+'\',\''+nameRaw+'\')">Edit</span>'+
+      '</div>'+
+      '<div class="note-summary-text">'+escHtml(n.text)+'</div>'+
+      (when?'<div class="note-summary-meta">Saved '+when+'</div>':'')+
       '</div>';
   }).join('');
-  sec.innerHTML =
-    '<div class="section-title" style="color:var(--kyoto)">📓 My Notes for This Day</div>' + items;
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  sec.innerHTML='<div class="section-title" style="color:var(--kyoto)">📓 My Notes for This Day</div>'+items;
 }
 </script>
 
 <script src="data.js"></script>
 <script>
 (function () {
-  const params  = new URLSearchParams(window.location.search);
-  const dateStr = params.get('date');
-  const day     = dateStr ? getDayByDate(dateStr) : null;
-  const el      = document.getElementById('day-content');
+  var params  = new URLSearchParams(window.location.search);
+  var dateStr = params.get('date');
+  var day     = dateStr ? getDayByDate(dateStr) : null;
+  var el      = document.getElementById('day-content');
 
   if (!day) {
     document.title = 'Day not found | Japan 2026';
-    el.innerHTML = '<div style="text-align:center;padding:60px">' +
-      '<div style="font-size:3rem">🗾</div>' +
-      '<h2 style="margin:12px 0">Day not found</h2>' +
-      '<a href="index.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#C8472A;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">← Back to Calendar</a>' +
+    el.innerHTML = '<div style="text-align:center;padding:60px">'+
+      '<div style="font-size:3rem">🗾</div>'+
+      '<h2 style="margin:12px 0">Day not found</h2>'+
+      '<a href="index.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#C8472A;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">← Back to Calendar</a>'+
       '</div>';
     return;
   }
 
-  const colors = REGION_COLORS[day.region];
+  var colors = REGION_COLORS[day.region] || REGION_COLORS.transit;
   document.title = 'Day ' + day.day + ': ' + day.theme + ' | Japan 2026';
 
-  const allDates = TRIP_DATA.days.map(d => d.date).sort();
-  const idx      = allDates.indexOf(day.date);
-  const prevDate = idx > 0 ? allDates[idx - 1] : null;
-  const nextDate = idx < allDates.length - 1 ? allDates[idx + 1] : null;
+  var allDates = TRIP_DATA.days.map(function(d){return d.date;}).sort();
+  var idx      = allDates.indexOf(day.date);
+  var prevDate = idx > 0 ? allDates[idx-1] : null;
+  var nextDate = idx < allDates.length-1 ? allDates[idx+1] : null;
 
   function labelForDate(d) {
-    const found = getDayByDate(d);
-    if (!found) return '';
-    const o = new Date(d + 'T00:00:00');
-    return o.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ' · ' + found.theme;
+    var found=getDayByDate(d);if(!found)return '';
+    var o=new Date(d+'T00:00:00');
+    return o.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+found.theme;
   }
 
-  const niceDateStr = new Date(day.date + 'T00:00:00').toLocaleDateString('en-GB', {
-    weekday:'long', day:'numeric', month:'long', year:'numeric'
-  });
+  var niceDateStr = new Date(day.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-  // ── HTML builders for item controls ──────────────────────────────────────────
-  function itemCtrls(key) {
-    return '<div class="item-ctrls">' +
-      '<button class="ctrl-btn" id="nbtn_' + key + '" onclick="toggleNote(\'' + key + '\')" title="Add note">📝</button>' +
-      '<button class="ctrl-btn ctrl-del" id="dbtn_' + key + '" onclick="toggleDeleteItem(\'' + key + '\')" title="Remove item">🗑</button>' +
-      '</div>';
-  }
+  // ── Calendar builder ──────────────────────────────────────────────────────────
+  function buildCalendar(activities, startLoc) {
+    var TOTAL_H = (GRID_END - GRID_START) * PX;
+    var bgColor = colors.accent || '#2A5DB0';
 
-  function notePanel(key) {
-    return '<div class="note-panel" id="np_' + key + '" style="display:none">' +
-      '<div class="note-voice-row">' +
-        '<textarea id="nt_' + key + '" placeholder="Add a note about this… or tap 🎙 to speak" rows="2"></textarea>' +
-        '<button id="vbtn_' + key + '" class="ctrl-btn" onclick="startVoice(\'' + key + '\')" title="Voice note" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button>' +
-      '</div>' +
-      '<div class="note-actions">' +
-        '<button class="ctrl-btn ctrl-save" onclick="saveNote(\'' + key + '\')">💾 Save</button>' +
-        '<button class="ctrl-btn" onclick="closeNote(\'' + key + '\')">✕ Cancel</button>' +
-      '</div>' +
-      '</div>';
-  }
+    // Parse times and split into scheduled / unscheduled
+    var scheduled = [], unscheduled = [];
+    activities.forEach(function(act, i) {
+      var t = parseTime(act.time);
+      if (t) scheduled.push({ act: act, t: t, origIdx: i });
+      else   unscheduled.push({ act: act, origIdx: i });
+    });
+    assignLanes(scheduled);
 
-  // ── Activities ────────────────────────────────────────────────────────────────
-  function buildActivities(activities, startLoc) {
-    return activities.map(function(act, i) {
-      var key    = makeKey(day.date, 'activities', act.name);
-      var origin = i === 0 ? startLoc : (activities[i-1].location || startLoc);
-      var dest   = act.location || null;
-      var mapHref   = dest ? mapsLink(origin, dest) : null;
+    // ── Time labels column ────────────────────────────────────────────────────
+    var timesHtml = '';
+    for (var h = GRID_START; h < GRID_END; h++) {
+      timesHtml += '<div class="cal-hour-label">' + (h<10?'0':'')+h+':00</div>';
+    }
+
+    // ── Hour / half-hour lines ────────────────────────────────────────────────
+    var linesHtml = '';
+    for (var h2 = GRID_START; h2 <= GRID_END; h2++) {
+      var top = (h2 - GRID_START) * PX;
+      linesHtml += '<div class="cal-hour-line" style="top:'+top+'px"></div>';
+      if (h2 < GRID_END) linesHtml += '<div class="cal-half-line" style="top:'+(top+30)+'px"></div>';
+    }
+
+    // ── Current-time line ─────────────────────────────────────────────────────
+    var nowHtml = '';
+    var todayStr = new Date().toISOString().slice(0,10);
+    if (day.date === todayStr) {
+      var now = new Date();
+      var nowH = now.getHours() + now.getMinutes()/60;
+      if (nowH >= GRID_START && nowH <= GRID_END) {
+        var nTop = Math.round((nowH - GRID_START) * PX);
+        var hStr = (now.getHours()<10?'0':'')+now.getHours();
+        var mStr = (now.getMinutes()<10?'0':'')+now.getMinutes();
+        nowHtml = '<div class="cal-now-line" style="top:'+nTop+'px">'+
+          '<div class="cal-now-dot"></div><div class="cal-now-time">'+hStr+':'+mStr+'</div></div>';
+      }
+    }
+
+    // ── Event blocks ──────────────────────────────────────────────────────────
+    var eventsHtml = '';
+    scheduled.forEach(function(item) {
+      var act=item.act, t=item.t, lane=item.lane, numLanes=item.numLanes, origIdx=item.origIdx;
+      var key = makeKey(day.date, 'activities', act.name);
+      var top  = Math.round((t.start - GRID_START) * PX);
+      var h    = Math.max(28, Math.round((t.end - t.start) * PX));
+      var isTiny = h < 48;
+
+      // Lane → left/width
+      var leftPct   = (lane / numLanes) * 100;
+      var widthPct  = (1   / numLanes) * 100;
+      var leftStyle = 'calc('+leftPct+'% + 2px)';
+      var widthStyle= 'calc('+widthPct+'% - 4px)';
+
+      // Directions (from previous stop or start location)
+      var origin = origIdx === 0 ? startLoc : (activities[origIdx-1].location || startLoc);
+      var mapHref = act.location ? mapsLink(origin, act.location) : null;
       var photoHref = photosLink(act.name);
-      return '<div class="activity-card" data-key="' + key + '">' +
-        itemCtrls(key) +
-        '<div class="activity-top" style="padding-right:72px">' +
-          '<div>' +
-            '<div class="activity-name">' + act.name + '</div>' +
-            (act.time   ? '<div class="activity-time">⏱ ' + act.time + '</div>' : '') +
-            (act.ticket ? '<div class="ticket-badge">🎫 ' + act.ticket + '</div>' : '') +
+
+      var approxTag = t.approx ? ' <span style="opacity:.7;font-size:.65rem">(approx)</span>' : '';
+      var timeDisp  = act.time || '';
+
+      var detailHtml =
+        '<div class="cal-event-detail" onclick="event.stopPropagation()">' +
+          (timeDisp ? '<div class="cal-event-detail-row">⏱ '+escHtml(timeDisp)+approxTag+'</div>' : '') +
+          (act.cost   ? '<div class="cal-event-detail-row">💴 '+escHtml(act.cost)+'</div>' : '') +
+          (act.ticket ? '<div class="cal-event-detail-row">🎫 '+escHtml(act.ticket)+'</div>' : '') +
+          (act.notes  ? '<div class="cal-event-detail-notes">'+escHtml(act.notes)+'</div>' : '') +
+          '<div class="cal-event-btns">' +
+            (mapHref ? '<a href="'+mapHref+'" target="_blank" class="ceb" onclick="event.stopPropagation()">🗺 Directions</a>' : '') +
+            '<a href="'+photoHref+'" target="_blank" class="ceb" onclick="event.stopPropagation()">📸 Photos</a>' +
+            '<button class="ceb" id="calnbtn_'+key+'" '+
+              'data-key="'+key+'" data-name="'+escHtml(act.name)+'" '+
+              'onclick="event.stopPropagation();openCalNote(this.dataset.key,this.dataset.name)">📝 Note</button>' +
+            '<button class="ceb del" id="caldbtn_'+key+'" '+
+              'data-key="'+key+'" data-name="'+escHtml(act.name)+'" '+
+              'onclick="event.stopPropagation();calDeleteItem(this.dataset.key,this.dataset.name)">🗑 Hide</button>' +
           '</div>' +
-          (act.cost ? '<div class="activity-cost">💴 ' + act.cost + '</div>' : '') +
-        '</div>' +
-        (act.notes ? '<div class="activity-notes">' + act.notes + '</div>' : '') +
-        '<div class="activity-actions">' +
-          (mapHref ? '<a href="' + mapHref + '" target="_blank" class="btn-maps">🗺 Directions from ' + (i === 0 ? 'Hotel/Start' : 'Previous Stop') + '</a>' : '') +
-          (act.officialUrl ? '<a href="' + act.officialUrl + '" target="_blank" class="btn-official">🔗 Official Site</a>' : '') +
-          '<a href="' + photoHref + '" target="_blank" class="btn-photos">📸 View Photos</a>' +
-        '</div>' +
-        (mapHref ? '<div class="maps-hint">💡 In Google Maps tap ⋮ → Route options → Prefer: Less walking</div>' : '') +
-        notePanel(key) +
         '</div>';
-    }).join('');
+
+      eventsHtml +=
+        '<div class="cal-event'+(isTiny?' tiny':'')+'" '+
+          'id="cale_'+key+'" '+
+          'data-key="'+key+'" '+
+          'style="top:'+top+'px;height:'+h+'px;left:'+leftStyle+';width:'+widthStyle+';background:'+bgColor+'" '+
+          'onclick="toggleCalEvent(\'cale_'+key+'\')" '+
+          'title="'+escHtml(act.name)+(act.time?' · '+escHtml(act.time):'')+'">' +
+          '<div class="cal-event-header">' +
+            '<div class="cal-event-name">'+escHtml(act.name)+'</div>' +
+            (!isTiny && timeDisp ? '<div class="cal-event-time">'+escHtml(timeDisp)+'</div>' : '') +
+          '</div>' +
+          detailHtml +
+        '</div>';
+    });
+
+    // ── Unscheduled section ───────────────────────────────────────────────────
+    var unschedHtml = '';
+    if (unscheduled.length > 0) {
+      var cards = unscheduled.map(function(item) {
+        var act=item.act, origIdx=item.origIdx;
+        var key = makeKey(day.date, 'activities', act.name);
+        var origin = origIdx===0 ? startLoc : (activities[origIdx-1].location||startLoc);
+        var mapHref   = act.location ? mapsLink(origin, act.location) : null;
+        var photoHref = photosLink(act.name);
+        return '<div class="activity-card" data-key="'+key+'">' +
+          '<div class="item-ctrls">' +
+            '<button class="ctrl-btn" id="nbtn_'+key+'" onclick="toggleNote(\''+key+'\')" title="Add note">📝</button>' +
+            '<button class="ctrl-btn ctrl-del" id="dbtn_'+key+'" onclick="toggleDeleteItem(\''+key+'\')" title="Remove item">🗑</button>' +
+          '</div>' +
+          '<div class="activity-top" style="padding-right:72px">' +
+            '<div>' +
+              '<div class="activity-name">'+escHtml(act.name)+'</div>' +
+              (act.time   ? '<div class="activity-time">⏱ '+escHtml(act.time)+'</div>' : '') +
+              (act.ticket ? '<div class="ticket-badge">🎫 '+escHtml(act.ticket)+'</div>' : '') +
+            '</div>' +
+            (act.cost ? '<div class="activity-cost">💴 '+escHtml(act.cost)+'</div>' : '') +
+          '</div>' +
+          (act.notes ? '<div class="activity-notes">'+escHtml(act.notes)+'</div>' : '') +
+          '<div class="activity-actions">' +
+            (mapHref ? '<a href="'+mapHref+'" target="_blank" class="btn-maps">🗺 Directions</a>' : '') +
+            '<a href="'+photoHref+'" target="_blank" class="btn-photos">📸 Photos</a>' +
+          '</div>' +
+          '<div class="note-panel" id="np_'+key+'" style="display:none">' +
+            '<div class="note-voice-row">' +
+              '<textarea id="nt_'+key+'" placeholder="Add a note…" rows="2"></textarea>' +
+              '<button id="vbtn_'+key+'" class="ctrl-btn" onclick="startVoice(\''+key+'\')" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button>' +
+            '</div>' +
+            '<div class="note-actions">' +
+              '<button class="ctrl-btn ctrl-save" onclick="saveNote(\''+key+'\')">💾 Save</button>' +
+              '<button class="ctrl-btn" onclick="closeNote(\''+key+'\')">✕ Cancel</button>' +
+            '</div>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+      unschedHtml = '<div class="unscheduled-wrap"><div class="unscheduled-label">📋 Flexible / Unscheduled</div>'+cards+'</div>';
+    }
+
+    return '<div class="cal-section">' +
+      '<div class="section-title">🕐 Day Timeline</div>' +
+      '<div class="cal-wrap"><div class="cal-scroll">' +
+        '<div class="cal-inner" style="height:'+TOTAL_H+'px">' +
+          '<div class="cal-times" style="height:'+TOTAL_H+'px">'+timesHtml+'</div>' +
+          '<div class="cal-events-col" style="height:'+TOTAL_H+'px">'+linesHtml+nowHtml+eventsHtml+'</div>' +
+        '</div>' +
+      '</div></div>' +
+      (scheduled.length===0 ? '<p style="color:var(--muted);font-size:0.84rem;padding:8px 4px">No timed activities for this day.</p>' : '') +
+      unschedHtml +
+      '</div>';
   }
 
   // ── Food ──────────────────────────────────────────────────────────────────────
   function buildFood(food) {
-    if (!food || food.length === 0) return '';
-    var items = food.map(function(f) {
-      var key = makeKey(day.date, 'food', f.name);
-      return '<div class="info-item" data-key="' + key + '">' +
-        itemCtrls(key) +
-        '<div style="padding-right:72px">' +
-          '<strong>' + f.name + '</strong>' +
-          '<span>📍 ' + f.where + ' · 💴 ' + f.price + '</span>' +
-          (f.notes ? '<span style="display:block;margin-top:3px">' + f.notes + '</span>' : '') +
+    if (!food||food.length===0) return '';
+    var items=food.map(function(f){
+      var key=makeKey(day.date,'food',f.name);
+      return '<div class="info-item" data-key="'+key+'">' +
+        '<div class="item-ctrls">' +
+          '<button class="ctrl-btn" id="nbtn_'+key+'" onclick="toggleNote(\''+key+'\')" title="Add note">📝</button>' +
+          '<button class="ctrl-btn ctrl-del" id="dbtn_'+key+'" onclick="toggleDeleteItem(\''+key+'\')" title="Remove">🗑</button>' +
         '</div>' +
-        notePanel(key) +
+        '<div style="padding-right:72px">' +
+          '<strong>'+escHtml(f.name)+'</strong>' +
+          '<span>📍 '+escHtml(f.where)+' · 💴 '+escHtml(f.price)+'</span>' +
+          (f.notes?'<span style="display:block;margin-top:3px">'+escHtml(f.notes)+'</span>':'') +
+        '</div>' +
+        '<div class="note-panel" id="np_'+key+'" style="display:none">' +
+          '<div class="note-voice-row"><textarea id="nt_'+key+'" placeholder="Add a note…" rows="2"></textarea>' +
+          '<button id="vbtn_'+key+'" class="ctrl-btn" onclick="startVoice(\''+key+'\')" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button></div>' +
+          '<div class="note-actions"><button class="ctrl-btn ctrl-save" onclick="saveNote(\''+key+'\')">💾 Save</button><button class="ctrl-btn" onclick="closeNote(\''+key+'\')">✕ Cancel</button></div>' +
+        '</div>' +
         '</div>';
     }).join('');
-    return '<div class="info-card"><div class="info-card-title">🍜 What to Eat</div>' + items + '</div>';
+    return '<div class="info-card"><div class="info-card-title">🍜 What to Eat</div>'+items+'</div>';
   }
 
   // ── Shopping ──────────────────────────────────────────────────────────────────
   function buildShopping(shopping) {
-    if (!shopping || shopping.length === 0) return '';
-    var items = shopping.map(function(s) {
-      var key = makeKey(day.date, 'shopping', s.name);
-      return '<div class="info-item" data-key="' + key + '">' +
-        itemCtrls(key) +
-        '<div style="padding-right:72px">' +
-          '<strong>' + s.name + '</strong>' +
-          '<span>📍 ' + s.where + ' · 💴 ' + s.price + '</span>' +
-          (s.notes ? '<span style="display:block;margin-top:3px">' + s.notes + '</span>' : '') +
+    if (!shopping||shopping.length===0) return '';
+    var items=shopping.map(function(s){
+      var key=makeKey(day.date,'shopping',s.name);
+      return '<div class="info-item" data-key="'+key+'">' +
+        '<div class="item-ctrls">' +
+          '<button class="ctrl-btn" id="nbtn_'+key+'" onclick="toggleNote(\''+key+'\')" title="Add note">📝</button>' +
+          '<button class="ctrl-btn ctrl-del" id="dbtn_'+key+'" onclick="toggleDeleteItem(\''+key+'\')" title="Remove">🗑</button>' +
         '</div>' +
-        notePanel(key) +
+        '<div style="padding-right:72px">' +
+          '<strong>'+escHtml(s.name)+'</strong>' +
+          '<span>📍 '+escHtml(s.where)+' · 💴 '+escHtml(s.price)+'</span>' +
+          (s.notes?'<span style="display:block;margin-top:3px">'+escHtml(s.notes)+'</span>':'') +
+        '</div>' +
+        '<div class="note-panel" id="np_'+key+'" style="display:none">' +
+          '<div class="note-voice-row"><textarea id="nt_'+key+'" placeholder="Add a note…" rows="2"></textarea>' +
+          '<button id="vbtn_'+key+'" class="ctrl-btn" onclick="startVoice(\''+key+'\')" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button></div>' +
+          '<div class="note-actions"><button class="ctrl-btn ctrl-save" onclick="saveNote(\''+key+'\')">💾 Save</button><button class="ctrl-btn" onclick="closeNote(\''+key+'\')">✕ Cancel</button></div>' +
+        '</div>' +
         '</div>';
     }).join('');
-    return '<div class="info-card"><div class="info-card-title">🛍 What to Buy / Shop</div>' + items + '</div>';
+    return '<div class="info-card"><div class="info-card-title">🛍 What to Buy / Shop</div>'+items+'</div>';
   }
 
   // ── Facts ─────────────────────────────────────────────────────────────────────
   function buildFacts(facts) {
-    if (!facts || facts.length === 0) return '';
-    var items = facts.map(function(f) {
-      var key = makeKey(day.date, 'facts', f);
-      return '<div class="info-item" data-key="' + key + '">' +
-        itemCtrls(key) +
-        '<div style="padding-right:72px">📖 ' + f + '</div>' +
-        notePanel(key) +
+    if (!facts||facts.length===0) return '';
+    var items=facts.map(function(f){
+      var key=makeKey(day.date,'facts',f);
+      return '<div class="info-item" data-key="'+key+'">' +
+        '<div class="item-ctrls">' +
+          '<button class="ctrl-btn" id="nbtn_'+key+'" onclick="toggleNote(\''+key+'\')" title="Add note">📝</button>' +
+          '<button class="ctrl-btn ctrl-del" id="dbtn_'+key+'" onclick="toggleDeleteItem(\''+key+'\')" title="Remove">🗑</button>' +
+        '</div>' +
+        '<div style="padding-right:72px">📖 '+escHtml(f)+'</div>' +
+        '<div class="note-panel" id="np_'+key+'" style="display:none">' +
+          '<div class="note-voice-row"><textarea id="nt_'+key+'" placeholder="Add a note…" rows="2"></textarea>' +
+          '<button id="vbtn_'+key+'" class="ctrl-btn" onclick="startVoice(\''+key+'\')" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button></div>' +
+          '<div class="note-actions"><button class="ctrl-btn ctrl-save" onclick="saveNote(\''+key+'\')">💾 Save</button><button class="ctrl-btn" onclick="closeNote(\''+key+'\')">✕ Cancel</button></div>' +
+        '</div>' +
         '</div>';
     }).join('');
-    return '<div class="info-card"><div class="info-card-title">🌟 Interesting Facts</div>' + items + '</div>';
+    return '<div class="info-card"><div class="info-card-title">🌟 Interesting Facts</div>'+items+'</div>';
   }
 
   // ── Hacks ─────────────────────────────────────────────────────────────────────
   function buildHacks(hacks) {
-    if (!hacks || hacks.length === 0) return '';
-    var items = hacks.map(function(h) {
-      var key = makeKey(day.date, 'hacks', h);
-      return '<div class="hack-item" data-key="' + key + '">' +
-        itemCtrls(key) +
-        '<div style="padding-right:72px">' + h + '</div>' +
-        notePanel(key) +
+    if (!hacks||hacks.length===0) return '';
+    var items=hacks.map(function(h){
+      var key=makeKey(day.date,'hacks',h);
+      return '<div class="hack-item" data-key="'+key+'">' +
+        '<div class="item-ctrls">' +
+          '<button class="ctrl-btn" id="nbtn_'+key+'" onclick="toggleNote(\''+key+'\')" title="Add note">📝</button>' +
+          '<button class="ctrl-btn ctrl-del" id="dbtn_'+key+'" onclick="toggleDeleteItem(\''+key+'\')" title="Remove">🗑</button>' +
+        '</div>' +
+        '<div style="padding-right:72px">'+escHtml(h)+'</div>' +
+        '<div class="note-panel" id="np_'+key+'" style="display:none">' +
+          '<div class="note-voice-row"><textarea id="nt_'+key+'" placeholder="Add a note…" rows="2"></textarea>' +
+          '<button id="vbtn_'+key+'" class="ctrl-btn" onclick="startVoice(\''+key+'\')" style="font-size:1rem;padding:6px 10px;flex-shrink:0">🎙</button></div>' +
+          '<div class="note-actions"><button class="ctrl-btn ctrl-save" onclick="saveNote(\''+key+'\')">💾 Save</button><button class="ctrl-btn" onclick="closeNote(\''+key+'\')">✕ Cancel</button></div>' +
+        '</div>' +
         '</div>';
     }).join('');
-    return '<div class="hacks-box"><div class="section-title" style="color:var(--kyoto)">💡 Money + Experience Hacks</div>' + items + '</div>';
+    return '<div class="hacks-box"><div class="section-title" style="color:var(--kyoto)">💡 Money + Experience Hacks</div>'+items+'</div>';
   }
 
   // ── Links strip ───────────────────────────────────────────────────────────────
   function buildLinks(d) {
-    var official = (d.officialLinks || []).map(function(l) {
-      return '<a href="' + l.url + '" target="_blank" class="btn-official">🔗 ' + l.label + '</a>';
-    }).join('');
-    var booking = (d.bookingLinks || []).map(function(l) {
-      return '<a href="' + l.url + '" target="_blank" class="btn-maps">🎟 ' + l.label + '</a>';
-    }).join('');
-    if (!official && !booking) return '';
-    return '<div class="links-row">' + official + booking + '</div>';
+    var official=(d.officialLinks||[]).map(function(l){return '<a href="'+l.url+'" target="_blank" class="btn-official">🔗 '+l.label+'</a>';}).join('');
+    var booking=(d.bookingLinks||[]).map(function(l){return '<a href="'+l.url+'" target="_blank" class="btn-maps">🎟 '+l.label+'</a>';}).join('');
+    if(!official&&!booking)return '';
+    return '<div class="links-row">'+official+booking+'</div>';
   }
 
   // ── Accommodation bar ─────────────────────────────────────────────────────────
-  var isTBC = day.accommodation && (day.accommodation.includes('TBC') || day.accommodation.includes('TO BE BOOKED'));
-  var accomHtml = day.accommodation
-    ? '<div class="accom-bar ' + (isTBC ? 'tbc' : 'confirmed') + '">🏨 ' + day.accommodation + '</div>'
-    : '';
+  var isTBC=day.accommodation&&(day.accommodation.includes('TBC')||day.accommodation.includes('TO BE BOOKED'));
+  var accomHtml=day.accommodation?'<div class="accom-bar '+(isTBC?'tbc':'confirmed')+'">🏨 '+escHtml(day.accommodation)+'</div>':'';
+  var statusLabel=day.confirmed?'✅ Confirmed':'📋 Planned';
+  var startLoc=day.startLocation||'Aoto Station Katsushika Tokyo';
 
-  var statusLabel = day.confirmed ? '✅ Confirmed' : '📋 Planned';
-
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── Render page ───────────────────────────────────────────────────────────────
   el.innerHTML =
-    '<div class="day-header ' + day.region + '">' +
+    '<div class="day-header '+day.region+'">' +
       '<div class="day-header-top">' +
-        '<div class="day-num">' + colors.label + ' · Day ' + day.day + ' of 21</div>' +
-        '<div class="day-status-badge">' + statusLabel + '</div>' +
+        '<div class="day-num">'+escHtml(colors.label)+' · Day '+day.day+' of 21</div>' +
+        '<div class="day-status-badge">'+statusLabel+'</div>' +
       '</div>' +
-      '<h1>' + day.theme + '</h1>' +
-      '<div class="day-meta">' + niceDateStr + ' · ' + day.city + '</div>' +
+      '<h1>'+escHtml(day.theme)+'</h1>' +
+      '<div class="day-meta">'+niceDateStr+' · '+escHtml(day.city)+'</div>' +
     '</div>' +
-
     accomHtml +
-
-    '<div class="section-title">📍 Activities &amp; Plans</div>' +
-    buildActivities(day.activities, day.startLocation || 'Aoto Station Katsushika Tokyo') +
-
+    buildCalendar(day.activities, startLoc) +
     '<div class="info-grid">' +
       buildFood(day.food) +
       buildShopping(day.shopping) +
       buildFacts(day.facts) +
     '</div>' +
-
     buildHacks(day.hacks) +
     buildLinks(day) +
-
     '<div id="day-notes-section" style="display:none"></div>' +
-
     '<div class="day-nav">' +
-      (prevDate ? '<a href="day.html?date=' + prevDate + '" style="text-align:left">← ' + labelForDate(prevDate) + '</a>' : '<div></div>') +
-      '<a href="index.html" class="home-link">📅</a>' +
-      (nextDate ? '<a href="day.html?date=' + nextDate + '" style="text-align:right">' + labelForDate(nextDate) + ' →</a>' : '<div></div>') +
+      (prevDate?'<a href="day.html?date='+prevDate+'" class="day-nav-btn prev">← '+escHtml(labelForDate(prevDate))+'</a>':'<span></span>') +
+      '<a href="index.html" class="day-nav-btn">📅 Calendar</a>' +
+      (nextDate?'<a href="day.html?date='+nextDate+'" class="day-nav-btn next">'+escHtml(labelForDate(nextDate))+' →</a>':'<span></span>') +
     '</div>';
 
-  // Apply deleted / replaced / note states from localStorage
+  // Apply saved states + scroll to 8am
   initAllStates();
-}());
+  var calScroll=document.querySelector('.cal-scroll');
+  if(calScroll){
+    var scrollTo=Math.max(0,(8-GRID_START)*PX-20);
+    calScroll.scrollTop=scrollTo;
+  }
+})();
 </script>
-
 </body>
 </html>
