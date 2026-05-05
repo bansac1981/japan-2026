@@ -7,7 +7,24 @@
   <link rel="stylesheet" href="style.css">
   <style>
     /* Mobile-first day page */
-    .day-activities { margin-top: 16px; }
+    .day-activities { margin-top: 12px; }
+
+    /* Route button */
+    .route-btn {
+      display: block; width: 100%; padding: 12px 16px; margin: 12px 0;
+      background: var(--transit-light); color: var(--transit); border: 1.5px solid var(--transit-mid);
+      border-radius: 10px; font-size: 0.88rem; font-weight: 700; text-align: center;
+      text-decoration: none; transition: background 0.15s;
+    }
+    .route-btn:active { background: var(--transit-mid); }
+
+    /* From badge (shows route connection) */
+    .act-from {
+      font-size: 0.72rem; color: var(--muted); margin-bottom: 4px;
+      padding: 3px 0; border-top: 1px dashed var(--border);
+    }
+    .act-from:first-child { border-top: none; }
+    .act-from a { color: var(--transit); text-decoration: none; font-weight: 600; }
 
     .act-card {
       background: var(--card-bg); border-radius: var(--radius); padding: 14px 16px;
@@ -26,7 +43,7 @@
     .act-card.expanded .act-notes { display: block; }
     .act-ticket { font-size: 0.75rem; color: var(--transit); margin-top: 4px; display: none; }
     .act-card.expanded .act-ticket { display: block; }
-    .act-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; display: none; }
+    .act-actions { flex-wrap: wrap; gap: 6px; margin-top: 8px; display: none; }
     .act-card.expanded .act-actions { display: flex; }
 
     .act-expand-hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
@@ -86,7 +103,7 @@
       width: 36px; height: 4px; background: var(--border);
       border-radius: 2px; margin: 0 auto 16px;
     }
-    .sheet h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .sheet h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
     .sheet .form-row { margin-bottom: 12px; }
     .sheet .form-row label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
     .sheet .form-row input, .sheet .form-row textarea {
@@ -97,6 +114,21 @@
       outline: none; border-color: var(--accent);
     }
     .sheet .form-row textarea { min-height: 60px; resize: vertical; }
+
+    /* Smart-fit suggestion in sheet */
+    .smart-suggest {
+      background: var(--transit-light); border: 1.5px solid var(--transit-mid);
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+      font-size: 0.82rem; color: var(--transit);
+    }
+    .smart-suggest strong { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+    .gap-chip {
+      display: inline-block; padding: 4px 10px; margin: 3px 4px 3px 0;
+      background: var(--card-bg); border: 1.5px solid var(--transit-mid);
+      border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    .gap-chip:active, .gap-chip.selected { background: var(--transit); color: #fff; border-color: var(--transit); }
+
     .sheet-actions { display: flex; gap: 10px; margin-top: 16px; }
     .sheet-actions button {
       flex: 1; padding: 12px; border-radius: 8px; font-size: 0.92rem;
@@ -150,13 +182,14 @@
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <h3 id="sheet-title">Add Activity</h3>
+    <div id="smart-suggest-area"></div>
     <div class="form-row">
       <label for="f-name">Activity name *</label>
       <input type="text" id="f-name" placeholder="e.g. Ramen lunch at Ichiran">
     </div>
     <div class="form-row">
-      <label for="f-time">Time (optional)</label>
-      <input type="text" id="f-time" placeholder="e.g. 12:30 or Morning">
+      <label for="f-time">Time</label>
+      <input type="text" id="f-time" placeholder="Auto-suggested or type e.g. 12:30">
     </div>
     <div class="form-row">
       <label for="f-cost">Cost (optional)</label>
@@ -211,16 +244,123 @@
   var nextDate = idx < allDates.length-1 ? allDates[idx+1] : null;
 
   var niceDateStr = new Date(day.date+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  var startLoc = day.startLocation || 'Aoto Station Katsushika Tokyo';
 
-  // Build activities HTML
+  // ── Time parsing ──
+  function parseTimeToHour(t) {
+    if (!t) return null;
+    var m = t.match(/(\d{1,2}):(\d{2})/);
+    if (m) return parseInt(m[1]) + parseInt(m[2])/60;
+    // Range: take start time
+    var mr = t.match(/(\d{1,2}):(\d{2})\s*[–\-]/);
+    if (mr) return parseInt(mr[1]) + parseInt(mr[2])/60;
+    var m2 = t.match(/^(\d{1,2})/);
+    if (m2 && parseInt(m2[1]) >= 5 && parseInt(m2[1]) <= 23) return parseInt(m2[1]);
+    if (/morning/i.test(t)) return 9;
+    if (/afternoon/i.test(t)) return 14;
+    if (/evening/i.test(t)) return 18;
+    return null;
+  }
+
+  function parseTimeEnd(t) {
+    if (!t) return null;
+    // Range HH:MM–HH:MM
+    var r = t.match(/(\d{1,2}):(\d{2})\s*[–\-→]+\s*(\d{1,2}):(\d{2})/);
+    if (r) return parseInt(r[3]) + parseInt(r[4])/60;
+    // Single time → assume 1.5hr duration
+    var s = parseTimeToHour(t);
+    return s !== null ? s + 1.5 : null;
+  }
+
+  function hourToStr(h) {
+    var hr = Math.floor(h);
+    var mn = Math.round((h - hr) * 60);
+    return (hr < 10 ? '0' : '') + hr + ':' + (mn < 10 ? '0' : '') + mn;
+  }
+
+  // ── Smart-fit: find available time gaps ──
+  function findTimeGaps(activities) {
+    var slots = [];
+    activities.forEach(function(act) {
+      var s = parseTimeToHour(act.time);
+      var e = parseTimeEnd(act.time);
+      if (s !== null && e !== null) slots.push({start: s, end: e, name: act.name});
+    });
+    slots.sort(function(a,b){return a.start - b.start;});
+
+    var gaps = [];
+    var dayStart = 7, dayEnd = 21;
+
+    // Before first activity
+    if (slots.length > 0 && slots[0].start > dayStart + 1) {
+      gaps.push({start: dayStart, end: slots[0].start, after: 'Day start'});
+    }
+    // Between activities
+    for (var i = 0; i < slots.length - 1; i++) {
+      var gapStart = slots[i].end;
+      var gapEnd = slots[i+1].start;
+      if (gapEnd - gapStart >= 0.5) { // at least 30min gap
+        gaps.push({start: gapStart, end: gapEnd, after: slots[i].name});
+      }
+    }
+    // After last activity
+    if (slots.length > 0 && slots[slots.length-1].end < dayEnd - 1) {
+      gaps.push({start: slots[slots.length-1].end, end: dayEnd, after: slots[slots.length-1].name});
+    }
+
+    return gaps;
+  }
+
+  // ── Build full-day Google Maps route URL ──
+  function buildRouteUrl(activities, startLoc) {
+    var locations = [startLoc];
+    activities.forEach(function(act) {
+      if (act.location) locations.push(act.location);
+    });
+    if (locations.length < 2) return null;
+
+    var origin = encodeURIComponent(locations[0]);
+    var dest = encodeURIComponent(locations[locations.length - 1]);
+    var waypoints = locations.slice(1, -1).map(function(l){return encodeURIComponent(l);}).join('|');
+
+    var url = 'https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + dest + '&travelmode=transit';
+    if (waypoints) url += '&waypoints=' + waypoints;
+    return url;
+  }
+
+  // ── Short location name (for "From:" label) ──
+  function shortLoc(loc) {
+    if (!loc) return '';
+    // Take first meaningful part (before comma or city name)
+    var parts = loc.split(/[,]/);
+    var s = parts[0].trim();
+    if (s.length > 30) s = s.substring(0, 28) + '...';
+    return s;
+  }
+
+  // ── Build activities HTML with route info ──
   function buildActivities(activities, startLoc) {
-    if (!activities || activities.length === 0) return '<p style="color:var(--muted);padding:12px">No activities planned yet.</p>';
-    var html = '';
+    if (!activities || activities.length === 0) return '<p style="color:var(--muted);padding:12px">No activities planned yet. Tap + to add one.</p>';
+
+    // Route button
+    var routeUrl = buildRouteUrl(activities, startLoc);
+    var html = routeUrl ? '<a href="' + routeUrl + '" target="_blank" class="route-btn">View Full Day Route in Google Maps</a>' : '';
+
     activities.forEach(function(act, i) {
       var prevLoc = i > 0 ? (activities[i-1].location || startLoc) : startLoc;
       var mapHref = act.location ? mapsLink(prevLoc, act.location) : null;
+      var fromLabel = shortLoc(prevLoc);
 
-      html += '<div class="act-card ' + day.region + '" data-idx="' + i + '" onclick="toggleCard(this)">' +
+      // "From" connection line
+      var fromHtml = '';
+      if (i > 0 && fromLabel && act.location) {
+        fromHtml = '<div class="act-from">From ' + esc(fromLabel) + '' +
+          (mapHref ? ' <a href="'+mapHref+'" target="_blank" onclick="event.stopPropagation()">Get directions</a>' : '') +
+          '</div>';
+      }
+
+      html += fromHtml +
+        '<div class="act-card ' + day.region + '" data-idx="' + i + '" onclick="toggleCard(this)">' +
         '<div class="act-edit-btns">' +
           '<button onclick="event.stopPropagation();editItem('+i+')">Edit</button>' +
           '<button class="btn-del" onclick="event.stopPropagation();deleteItem('+i+')">Del</button>' +
@@ -232,7 +372,8 @@
         '<div class="act-notes">' + esc(act.notes || '') + '</div>' +
         (act.ticket ? '<div class="act-ticket">' + esc(act.ticket) + '</div>' : '') +
         '<div class="act-actions">' +
-          (mapHref ? '<a href="'+mapHref+'" target="_blank" class="btn-maps" onclick="event.stopPropagation()">Directions</a>' : '') +
+          (mapHref ? '<a href="'+mapHref+'" target="_blank" class="btn-maps" onclick="event.stopPropagation()">Directions from prev</a>' : '') +
+          (act.location ? '<a href="'+mapsLink('', act.location)+'" target="_blank" class="btn-maps" onclick="event.stopPropagation()">Open in Maps</a>' : '') +
         '</div>' +
       '</div>';
     });
@@ -273,8 +414,7 @@
     return html + '</div>';
   }
 
-  var startLoc = day.startLocation || 'Aoto Station Katsushika Tokyo';
-
+  // ── Render page ──
   el.innerHTML =
     '<div class="day-header ' + day.region + '">' +
       '<div class="day-header-top">' +
@@ -299,7 +439,7 @@
   };
 
   // ── Sheet state ──
-  var _editIdx = -1; // -1 = adding new, >= 0 = editing existing
+  var _editIdx = -1;
 
   window.openAddSheet = function() {
     _editIdx = -1;
@@ -309,13 +449,45 @@
     document.getElementById('f-cost').value = '';
     document.getElementById('f-location').value = '';
     document.getElementById('f-notes').value = '';
+
+    // Show smart-fit suggestions
+    var gaps = findTimeGaps(day.activities);
+    var suggestArea = document.getElementById('smart-suggest-area');
+    if (gaps.length > 0) {
+      var bestGap = gaps.reduce(function(a,b){return (b.end-b.start)>(a.end-a.start)?b:a;});
+      var suggestTime = hourToStr(bestGap.start + 0.25); // suggest 15min into the gap
+
+      var chipsHtml = gaps.map(function(g) {
+        var label = hourToStr(g.start) + '-' + hourToStr(g.end);
+        var isBest = (g === bestGap);
+        return '<span class="gap-chip' + (isBest?' selected':'') + '" onclick="pickGap(\''+hourToStr(g.start + 0.25)+'\')">' + label + '</span>';
+      }).join('');
+
+      suggestArea.innerHTML = '<div class="smart-suggest">' +
+        '<strong>Available time slots</strong>' +
+        'Best fit: ' + hourToStr(bestGap.start) + '-' + hourToStr(bestGap.end) +
+        ' (after ' + esc(shortLoc(bestGap.after)) + ')' +
+        '<div style="margin-top:6px">' + chipsHtml + '</div></div>';
+
+      document.getElementById('f-time').value = suggestTime;
+    } else {
+      suggestArea.innerHTML = '';
+    }
+
     document.getElementById('sheet-backdrop').classList.add('open');
+  };
+
+  window.pickGap = function(time) {
+    document.getElementById('f-time').value = time;
+    document.querySelectorAll('.gap-chip').forEach(function(c){c.classList.remove('selected');});
+    event.target.classList.add('selected');
   };
 
   window.editItem = function(idx) {
     _editIdx = idx;
     var act = day.activities[idx];
     document.getElementById('sheet-title').textContent = 'Edit Activity';
+    document.getElementById('smart-suggest-area').innerHTML = '';
     document.getElementById('f-name').value = act.name || '';
     document.getElementById('f-time').value = act.time || '';
     document.getElementById('f-cost').value = act.cost || '';
@@ -332,7 +504,6 @@
     var act = day.activities[idx];
     if (!confirm('Delete "' + act.name + '"?')) return;
     day.activities.splice(idx, 1);
-    // Re-render
     document.querySelector('.day-activities').innerHTML = buildActivities(day.activities, startLoc);
     showToast('Deleted! Saving...');
     commitToGitHub('Remove: ' + act.name + ' from ' + day.date);
@@ -351,7 +522,6 @@
     };
 
     if (_editIdx >= 0) {
-      // Update existing — preserve any fields we don't show in the form
       var existing = day.activities[_editIdx];
       existing.name = item.name;
       existing.time = item.time;
@@ -359,21 +529,19 @@
       existing.location = item.location;
       existing.notes = item.notes;
     } else {
-      // Add new — insert at logical position based on time
       var insertIdx = findInsertPosition(day.activities, item.time);
       day.activities.splice(insertIdx, 0, item);
     }
 
     closeSheet();
-    // Re-render
     document.querySelector('.day-activities').innerHTML = buildActivities(day.activities, startLoc);
     showToast('Saved! Pushing to site...');
     commitToGitHub((_editIdx >= 0 ? 'Edit' : 'Add') + ': ' + item.name + ' on ' + day.date);
   };
 
-  // Find insert position by time
+  // Find insert position by time (smart-fit)
   function findInsertPosition(activities, timeStr) {
-    if (!timeStr) return activities.length; // no time → add at end
+    if (!timeStr) return activities.length;
     var newH = parseTimeToHour(timeStr);
     if (newH === null) return activities.length;
     for (var i = 0; i < activities.length; i++) {
@@ -381,18 +549,6 @@
       if (h !== null && h > newH) return i;
     }
     return activities.length;
-  }
-
-  function parseTimeToHour(t) {
-    if (!t) return null;
-    var m = t.match(/(\d{1,2}):(\d{2})/);
-    if (m) return parseInt(m[1]) + parseInt(m[2])/60;
-    var m2 = t.match(/^(\d{1,2})/);
-    if (m2 && parseInt(m2[1]) >= 5 && parseInt(m2[1]) <= 23) return parseInt(m2[1]);
-    if (/morning/i.test(t)) return 9;
-    if (/afternoon/i.test(t)) return 14;
-    if (/evening/i.test(t)) return 18;
-    return null;
   }
 
 })();
